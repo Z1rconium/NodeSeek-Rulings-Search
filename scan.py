@@ -29,6 +29,18 @@ def save_cookie(cookie_str):
     with open(COOKIE_FILE, "w", encoding="utf-8") as f:
         f.write(cookie_str)
 
+def get_last_scan_time():
+    if os.path.exists("last_scan_time.txt"):
+        with open("last_scan_time.txt", "r", encoding="utf-8") as f:
+            return f.read().strip()
+    return "尚未记录"
+
+def set_last_scan_time():
+    import datetime
+    dt_bj = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
+    with open("last_scan_time.txt", "w", encoding="utf-8") as f:
+        f.write(dt_bj.strftime("%Y-%m-%d %H:%M:%S"))
+
 # --- 数据库操作 ---
 def init_db():
     conn = sqlite3.connect(DB_FILE)
@@ -131,6 +143,7 @@ def fetch_and_save_sync():
             elif response.status_code == 403:
                 print(f"遇到 403 错误，Cookie 过期。当前 ID: {current_id}")
                 conn.close()
+                set_last_scan_time()
                 return "403_FORBIDDEN"
                 
             else:
@@ -146,6 +159,7 @@ def fetch_and_save_sync():
         time.sleep(random.uniform(0.1, 0.5))
 
     conn.close()
+    set_last_scan_time()
     return f"DONE_{scraped_count}"
 
 # ================= Telegram Bot 交互逻辑 =================
@@ -239,12 +253,14 @@ def translate_action_request(req):
         return str(req)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    last_time = get_last_scan_time()
     welcome_text = (
         "🤖 NodeSeek Ruling Bot 已启动！\n"
         "可用命令：\n"
         "🔍 `/search 用户名` - 查询特定用户的处罚记录\n"
         "🍪 `/setcookie 你的cookie` - 更新爬虫使用的 Cookie\n"
-        "▶️ `/run` - 立即手动执行一次抓取"
+        "▶️ `/run` - 立即手动执行一次抓取\n\n"
+        f"🕒 最后爬取时间：{last_time}"
     )
     await update.message.reply_text(welcome_text, parse_mode='Markdown')
 
@@ -256,7 +272,8 @@ async def send_search_page(update: Update, target: str, page: int, is_callback: 
     target_esc = html.escape(target)
     
     if total_count == 0:
-        text = f"📭 数据库中未找到关于 <code>{target_esc}</code> 的记录。"
+        last_time = get_last_scan_time()
+        text = f"📭 数据库中未找到关于 <code>{target_esc}</code> 的记录。\n\n🕒 最后爬取时间：{last_time}"
         if is_callback:
             await update.callback_query.edit_message_text(text, parse_mode='HTML')
         else:
@@ -288,6 +305,8 @@ async def send_search_page(update: Update, target: str, page: int, is_callback: 
                 f"{'-'*20}")
         msg_lines.append(line)
     
+    last_time = get_last_scan_time()
+    msg_lines.append(f"\n🕒 最后爬取时间：{last_time}")
     reply_text = "\n".join(msg_lines)
     
     keyboard = []
@@ -309,14 +328,15 @@ async def send_search_page(update: Update, target: str, page: int, is_callback: 
 
 async def search_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """响应 /search 命令"""
+    last_time = get_last_scan_time()
     if not context.args:
-        await update.message.reply_text("⚠️ 请提供要搜索的用户名。用法：`/search 用户名`", parse_mode='Markdown')
+        await update.message.reply_text(f"⚠️ 请提供要搜索的用户名。用法：`/search 用户名`\n\n🕒 最后爬取时间：{last_time}", parse_mode='Markdown')
         return
 
     target = " ".join(context.args)
     
     if len(target.encode('utf-8')) > 40:
-        await update.message.reply_text("⚠️ 搜索的用户名过长，请缩短后重试。")
+        await update.message.reply_text(f"⚠️ 搜索的用户名过长，请缩短后重试。\n\n🕒 最后爬取时间：{last_time}")
         return
 
     await send_search_page(update, target, page=1, is_callback=False)
@@ -336,36 +356,41 @@ async def search_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await send_search_page(update, target, page, is_callback=True)
 
 async def set_cookie_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    last_time = get_last_scan_time()
     if not context.args:
-        await update.message.reply_text("⚠️ 请提供 Cookie 内容。用法：\n`/setcookie session=xxx; cf_clearance=yyy...`", parse_mode='Markdown')
+        await update.message.reply_text(f"⚠️ 请提供 Cookie 内容。用法：\n`/setcookie session=xxx; cf_clearance=yyy...`\n\n🕒 最后爬取时间：{last_time}", parse_mode='Markdown')
         return
 
     new_cookie = " ".join(context.args)
     save_cookie(new_cookie)
-    await update.message.reply_text("✅ Cookie 已成功更新并保存！")
+    await update.message.reply_text(f"✅ Cookie 已成功更新并保存！\n\n🕒 最后爬取时间：{last_time}")
 
 async def run_scraper_task(context: ContextTypes.DEFAULT_TYPE):
     status = await asyncio.to_thread(fetch_and_save_sync)
+    last_time = get_last_scan_time()
     
     if status == "403_FORBIDDEN":
         warning_msg = (
             "⚠️ **爬虫警告：Cookie 已失效！**\n\n"
             "抓取 API 返回了 403 错误（可能被 Cloudflare 拦截或 Cookie 过期）。\n"
             "请在浏览器重新抓包获取，并通过以下命令更新：\n"
-            "`/setcookie 你的新Cookie内容`"
+            "`/setcookie 你的新Cookie内容`\n\n"
+            f"🕒 最后爬取时间：{last_time}"
         )
         await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=warning_msg, parse_mode='Markdown')
     elif status == "NO_COOKIE":
-        await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text="⚠️ 爬虫未能启动：未找到 Cookie，请使用 `/setcookie` 设置。")
+        await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"⚠️ 爬虫未能启动：未找到 Cookie，请使用 `/setcookie` 设置。\n\n🕒 最后爬取时间：{last_time}")
     elif status.startswith("DONE"):
         count = status.split("_")[1]
         if int(count) > 0:
-            await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"✅ 定时抓取完成，新增 `{count}` 条数据。", parse_mode='Markdown')
+            await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"✅ 定时抓取完成，新增 `{count}` 条数据。\n\n🕒 最后爬取时间：{last_time}", parse_mode='Markdown')
 
 async def manual_run(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("⏳ 开始执行后台抓取，这可能需要一点时间...")
+    last_time = get_last_scan_time()
+    await update.message.reply_text(f"⏳ 开始执行后台抓取，这可能需要一点时间...\n\n🕒 最后爬取时间：{last_time}")
     await run_scraper_task(context)
-    await update.message.reply_text("🏁 手动抓取任务执行完毕（如有403会自动发送警告）。")
+    last_time = get_last_scan_time()
+    await update.message.reply_text(f"🏁 手动抓取任务执行完毕（如有403会自动发送警告）。\n\n🕒 最后爬取时间：{last_time}")
 
 
 def main():
