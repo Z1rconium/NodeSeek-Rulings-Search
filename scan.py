@@ -167,7 +167,9 @@ def translate_action_request(req):
             return str(req)
             
         res = []
-        if "target" in req_obj:
+        is_stardust = "stardust" in req_obj
+        
+        if "target" in req_obj and not is_stardust:
             target_val = req_obj['target']
             if isinstance(target_val, dict) and "uid" in target_val:
                 res.append(f"目标用户UID：{target_val['uid']}")
@@ -208,6 +210,27 @@ def translate_action_request(req):
             if sus.get("status"):
                 val = sus.get("value", "")
                 res.append(f"用户被禁言{val}天")
+                
+        if is_stardust:
+            sd = req_obj["stardust"]
+            diff = sd.get("stardust_diff", "")
+            target_id = ""
+            if "target" in req_obj:
+                t = req_obj["target"]
+                if isinstance(t, dict):
+                    target_id = t.get("uid", t.get("id", ""))
+                else:
+                    target_id = t
+            
+            try:
+                if int(diff) < 0:
+                    action = "处罚"
+                else:
+                    action = "奖励"
+            except ValueError:
+                action = "调整"
+                
+            res.append(f"对{target_id}用户采取{diff}星辰币的{action}")
                 
         if res:
             return "，".join(res)
