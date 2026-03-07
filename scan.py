@@ -18,7 +18,8 @@ if not os.path.exists(CONFIG_FILE):
         "ADMIN_CHAT_ID": 123456789, 
         "DB_FILE": "nodeseek_ruling.db",
         "COOKIE_FILE": "cookie.txt",
-        "API_URL_TEMPLATE": "https://www.nodeseek.com/api/admin/ruling/id-{}"
+        "API_URL_TEMPLATE": "https://www.nodeseek.com/api/admin/ruling/id-{}",
+        "PASSWORD": "YOUR_PASSWORD"
     }
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(default_config, f, indent=4, ensure_ascii=False)
@@ -33,6 +34,7 @@ ADMIN_CHAT_ID = config.get("ADMIN_CHAT_ID", 0)
 DB_FILE = config.get("DB_FILE", "nodeseek_ruling.db")
 COOKIE_FILE = config.get("COOKIE_FILE", "cookie.txt")
 API_URL_TEMPLATE = config.get("API_URL_TEMPLATE", "https://www.nodeseek.com/api/admin/ruling/id-{}")
+PASSWORD = config.get("PASSWORD", "")
 # ============================================
 
 # --- Cookie 管理 ---
@@ -355,7 +357,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "可用命令：\n"
         "🔍 `/search 用户名` - 查询特定用户的处罚记录\n"
         "📊 `/static` - 查看管理记录统计信息\n"
-        "🍪 `/setcookie 你的cookie` - 更新爬虫使用的 Cookie\n"
+        "🍪 `/setcookie 密码 你的cookie` - 更新爬虫使用的 Cookie（需要密码）\n"
         "▶️ `/run` - 立即手动执行一次抓取\n\n"
         f"🕒 最后爬取时间：{last_time}"
     )
@@ -454,11 +456,16 @@ async def search_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def set_cookie_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     last_time = get_last_scan_time()
-    if not context.args:
-        await update.message.reply_text(f"⚠️ 请提供 Cookie 内容。用法：\n`/setcookie session=xxx; cf_clearance=yyy...`\n\n🕒 最后爬取时间：{last_time}", parse_mode='Markdown')
+    if not context.args or len(context.args) < 2:
+        await update.message.reply_text(f"⚠️ 请提供密码和 Cookie 内容。用法：\n`/setcookie 密码 session=xxx; cf_clearance=yyy...`\n\n🕒 最后爬取时间：{last_time}", parse_mode='Markdown')
         return
 
-    new_cookie = " ".join(context.args)
+    input_password = context.args[0]
+    if input_password != PASSWORD:
+        await update.message.reply_text("❌ 密码错误，无法更新 Cookie。")
+        return
+
+    new_cookie = " ".join(context.args[1:])
     save_cookie(new_cookie)
     await update.message.reply_text(f"✅ Cookie 已成功更新并保存！\n\n🕒 最后爬取时间：{last_time}")
 
