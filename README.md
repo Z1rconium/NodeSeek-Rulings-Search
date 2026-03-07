@@ -1,69 +1,87 @@
-# NodeSeek Ruling Bot
+# NodeSeek Rulings Search Bot
 
-一个功能强大的 Telegram Bot，用于自动化抓取、存储并查询 [NodeSeek](https://www.nodeseek.com) 管理员的处罚（Ruling）记录。
+这是一个用于抓取和查询 NodeSeek 论坛处理记录（Ruling）的 Telegram Bot。它能够自动采集论坛的处理结果并存储到本地数据库，方便用户随时通过 Telegram 搜索特定用户的处罚历史。
 
-## 🌟 功能特性
+## ✨ 功能特性
 
--   **智能增量抓取**：基于最后一次抓取的 ID 自动向下探测，支持断点续传。
--   **高度可读的中文翻译**：
-    -   自动将复杂的 JSON 操作指令翻译为直观的中文（如：星辰币奖惩、鸡腿变动、封禁天数、帖子移动、等级修改等）。
-    -   支持 **星辰币 (Stardust)** 的特殊翻译逻辑，自动识别奖励或处罚。
--   **定时自动任务**：每天零点（通常为北京时间 08:00）自动执行抓取任务，保持数据实时更新。
--   **最后爬取时间记录**：每次成功抓取后都会记录时间，并在所有 Bot 响应中附带该时间戳，方便知晓数据新鲜度。
--   **分页检索系统**：支持对特定用户名进行模糊查询，并使用 Telegram 按钮进行翻页切换。
--   **安全告警**：遇到 403 错误（Cookie 失效）时，会立即向管理员发送私聊提醒。
--   **拟人化抓取**：内置 `curl_cffi` 模拟浏览器指纹，配合随机延迟，最大程度降低被防火墙拦截的风险。
+- **自动抓取**：支持定时（每日）或手动触发抓取最新的处理记录。
+- **配置灵活**：通过 `config.json` 轻松管理 Bot Token、管理员 ID 等设置。
+- **Cookie 管理**：支持通过指令直接在 Telegram 中更新爬虫所需的 Cookie，无需重启。
+- **智能解析**：自动解析原始的处理请求 JSON 数据，将其转化为易读的中文描述（如禁言天数、鸡腿奖惩、星辰币变动等）。
+- **分页搜索**：内置分页查询功能，支持大批量搜索结果的翻页浏览。
+- **状态追踪**：自动记录并展示最后一次成功爬取的时间。
+- **安全提醒**：当 Cookie 失效（403 错误）时，会自动向管理员发送警告消息。
 
-## 🛠️ 环境要求
+## 🚀 快速开始
 
--   **Python**: 3.9+
--   **核心依赖**:
-    ```bash
-    pip install curl_cffi python-telegram-bot[job-queue]
-    ```
+### 1. 安装依赖
 
-## ⚙️ 配置方法
+确保你已安装 Python 3.8+。运行以下命令安装必要的依赖库：
 
-编辑 `scan.py` 顶部的 **配置区域**：
-
-```python
-# ================= 配置区域 =================
-BOT_TOKEN = "YOUR_BOT_TOKEN"      # BotFather 提供的 Token
-ADMIN_CHAT_ID = 123456789         # 你的个人 Telegram ID (用于接收告警)
-# ============================================
+```bash
+pip install python-telegram-bot curl_cffi
 ```
 
-## 🚀 使用方法
+> 注意：`curl_cffi` 用于模拟浏览器环境，以绕过简单的反爬措施。
 
-1.  **启动程序**:
-    ```bash
-    python scan.py
-    ```
-2.  **设置 Cookie**:
-    -   在浏览器登录具有管理员权限的 NodeSeek 账号。
-    -   打开 F12 开发者工具，复制 `Cookie` 字段。
-    -   在 Telegram 中发送命令：`/setcookie 你的Cookie内容`
-3.  **查询记录**:
-    -   直接发送 `/search 用户名` 即可开始检索。
+### 2. 初始化配置
 
-## 🤖 Bot 命令列表
+首次运行程序：
 
-| 命令 | 描述 |
-| :--- | :--- |
-| `/start` | 启动 Bot 并查看当前系统状态 |
-| `/search <用户名>` | 搜索特定用户的处罚记录（支持模糊匹配） |
-| `/setcookie <Cookie>`| 更新系统使用的会话 Cookie |
-| `/run` | 立即手动触发一次完整的抓取任务 |
+```bash
+python scan.py
+```
 
-## 📂 文件结构
+程序会因为找不到 `config.json` 而退出，并自动生成一个默认模板。请编辑 `config.json`：
 
--   `scan.py`: 包含爬虫逻辑与 Bot 交互的核心代码。
--   `nodeseek_ruling.db`: SQLite 数据库文件，存储所有历史处罚数据。
--   `cookie.txt`: 持久化存储你设置的 Cookie。
--   `last_scan_time.txt`: 记录最后一次成功执行任务的时间戳。
+```json
+{
+    "BOT_TOKEN": "你的_TELEGRAM_BOT_TOKEN",
+    "ADMIN_CHAT_ID": 123456789, 
+    "DB_FILE": "nodeseek_ruling.db",
+    "COOKIE_FILE": "cookie.txt",
+    "API_URL_TEMPLATE": "https://www.nodeseek.com/api/admin/ruling/id-{}"
+}
+```
 
-## ⚠️ 注意事项
+- `BOT_TOKEN`: 从 @BotFather 获取。
+- `ADMIN_CHAT_ID`: 你的 Telegram UID（用于接收警告消息）。
 
--   本工具仅供技术研究分享，严禁用于任何破坏活动。
--   请妥善保管 `BOT_TOKEN`，切勿将其提交至公共代码仓库。
--   `curl_cffi` 默认模拟 Chrome 120 的 TLS 指纹，如遇频繁拦截请尝试更新模拟版本。
+### 3. 设置 Cookie
+
+为了让爬虫能够访问 API，你需要提供有效的论坛 Cookie。
+
+1. 在浏览器登录 NodeSeek，打开开发者工具（F12）。
+2. 在“网络 (Network)”面板找到任意请求，复制 `Cookie` 请求头的值。
+3. 启动 Bot 后，在私聊中发送指令更新：
+   `/setcookie 你的Cookie内容`
+
+### 4. 运行 Bot
+
+```bash
+python scan.py
+```
+
+## 🤖 Bot 指令说明
+
+- `/start` - 查看功能介绍及最后抓取时间。
+- `/search 用户名` - 搜索特定用户的处罚记录（支持分页）。
+- `/setcookie <cookie>` - 手动更新爬虫 Cookie。
+- `/run` - 立即触发一次全量抓取任务。
+
+## 🛠️ 项目结构
+
+- `scan.py`: 核心逻辑文件（爬虫 + Bot 逻辑）。
+- `config.json`: 配置文件。
+- `nodeseek_ruling.db`: SQLite3 数据库文件。
+- `cookie.txt`: 存储最新的 Cookie 内容。
+- `last_scan_time.txt`: 记录最后一次扫描成功的时间戳。
+
+## 📝 开发与维护
+
+爬虫采用 `curl_cffi` 进行指纹模拟，默认使用 `chrome120` 版本的 TLS 指纹。
+定时任务默认在每日 00:00:00 执行。
+
+---
+
+*免责声明：本项目仅供学习和研究使用，请勿用于违反论坛规则或法律法规的行为。*
