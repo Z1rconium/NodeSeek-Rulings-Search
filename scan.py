@@ -288,10 +288,18 @@ def translate_action_request(req):
             coin = req_obj["coin"]
             reason = coin.get("reason", "")
             diff = coin.get("coin_diff", "")
+            try:
+                if int(diff) >= 0:
+                    diff_str = f"+{diff}"
+                else:
+                    diff_str = str(diff)
+            except:
+                diff_str = str(diff)
+                
             if reason:
-                res.append(f'因为"{reason}"，所以鸡腿{diff}')
+                res.append(f'因为"{reason}"，所以鸡腿{diff_str}')
             else:
-                res.append(f"鸡腿{diff}")
+                res.append(f"鸡腿{diff_str}")
                 
         if "hideComment" in req_obj:
             hc = req_obj["hideComment"]
