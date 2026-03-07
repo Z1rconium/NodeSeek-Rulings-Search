@@ -252,8 +252,11 @@ def translate_action_request(req):
             
         if "postSummary" in req_obj:
             ps = req_obj["postSummary"]
-            if ps.get("locked"):
-                res.append("锁定修改")
+            if "locked" in ps:
+                if ps["locked"]:
+                    res.append("锁定修改")
+                else:
+                    res.append("解除锁定")
             else:
                 rank = ps.get("rank")
                 category = ps.get("category")
