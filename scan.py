@@ -274,6 +274,10 @@ def translate_action_request(req):
             else:
                 res.append("恢复该用户的全部内容显示")
 
+        if "pinComment" in req_obj:
+            if req_obj["pinComment"].get("status"):
+                res.append("置顶评论")
+
         if "suspend" in req_obj:
             sus = req_obj["suspend"]
             if sus.get("status"):
