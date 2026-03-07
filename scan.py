@@ -11,11 +11,28 @@ from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQuer
 import datetime
 
 # ================= 配置区域 =================
-BOT_TOKEN = "YOUR_BOT_TOKEN"
-ADMIN_CHAT_ID = YOUR_ADMIN_CHAT_ID
-DB_FILE = "nodeseek_ruling.db"
-COOKIE_FILE = "cookie.txt"
-API_URL_TEMPLATE = "https://www.nodeseek.com/api/admin/ruling/id-{}"
+CONFIG_FILE = "config.json"
+if not os.path.exists(CONFIG_FILE):
+    default_config = {
+        "BOT_TOKEN": "YOUR_BOT_TOKEN",
+        "ADMIN_CHAT_ID": 123456789, 
+        "DB_FILE": "nodeseek_ruling.db",
+        "COOKIE_FILE": "cookie.txt",
+        "API_URL_TEMPLATE": "https://www.nodeseek.com/api/admin/ruling/id-{}"
+    }
+    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump(default_config, f, indent=4, ensure_ascii=False)
+    print(f"检测不到配置文件 {CONFIG_FILE}，已自动生成默认配置，请修改后重新运行。")
+    exit(1)
+
+with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+    config = json.load(f)
+
+BOT_TOKEN = config.get("BOT_TOKEN", "")
+ADMIN_CHAT_ID = config.get("ADMIN_CHAT_ID", 0)
+DB_FILE = config.get("DB_FILE", "nodeseek_ruling.db")
+COOKIE_FILE = config.get("COOKIE_FILE", "cookie.txt")
+API_URL_TEMPLATE = config.get("API_URL_TEMPLATE", "https://www.nodeseek.com/api/admin/ruling/id-{}")
 # ============================================
 
 # --- Cookie 管理 ---
