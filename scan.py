@@ -240,12 +240,15 @@ def translate_action_request(req):
         
         if "target" in req_obj and not is_stardust:
             target_val = req_obj['target']
+            is_comment = "pinComment" in req_obj or "hideComment" in req_obj
+            target_type = "评论" if is_comment else "帖子"
+            
             if isinstance(target_val, dict) and "uid" in target_val:
                 res.append(f"目标用户UID：{target_val['uid']}")
             elif isinstance(target_val, dict) and "id" in target_val:
-                res.append(f"目标帖子ID：{target_val['id']}")
+                res.append(f"目标{target_type}ID：{target_val['id']}")
             else:
-                res.append(f"目标帖子ID：{target_val}")
+                res.append(f"目标{target_type}ID：{target_val}")
             
         if "postSummary" in req_obj:
             ps = req_obj["postSummary"]
@@ -269,13 +272,16 @@ def translate_action_request(req):
                 
         if "hideComment" in req_obj:
             hc = req_obj["hideComment"]
-            if hc.get("status"):
+            if isinstance(hc, dict) and hc.get("status"):
                 res.append("隐藏该用户的全部内容")
-            else:
+            elif isinstance(hc, dict):
                 res.append("恢复该用户的全部内容显示")
 
         if "pinComment" in req_obj:
-            if req_obj["pinComment"].get("status"):
+            pc = req_obj["pinComment"]
+            if isinstance(pc, dict) and pc.get("status"):
+                res.append("置顶评论")
+            elif pc is True or pc == "true":
                 res.append("置顶评论")
 
         if "suspend" in req_obj:
