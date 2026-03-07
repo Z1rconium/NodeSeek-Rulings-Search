@@ -252,14 +252,17 @@ def translate_action_request(req):
             
         if "postSummary" in req_obj:
             ps = req_obj["postSummary"]
-            rank = ps.get("rank")
-            category = ps.get("category")
-            if rank is not None and category is not None:
-                res.append(f"帖子的阅读等级设置为{rank}，并且移动到{category}板块")
-            elif category is not None:
-                res.append(f"将帖子移动到{category}板块")
-            elif rank is not None:
-                res.append(f"帖子的阅读等级设置为{rank}")
+            if ps.get("locked"):
+                res.append("锁定修改")
+            else:
+                rank = ps.get("rank")
+                category = ps.get("category")
+                if rank is not None and category is not None:
+                    res.append(f"帖子的阅读等级设置为{rank}，并且移动到{category}板块")
+                elif category is not None:
+                    res.append(f"将帖子移动到{category}板块")
+                elif rank is not None:
+                    res.append(f"帖子的阅读等级设置为{rank}")
                 
         if "coin" in req_obj:
             coin = req_obj["coin"]
