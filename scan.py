@@ -101,6 +101,44 @@ def get_search_results(target, page, per_page=5):
     
     return total_count, results
 
+def get_statistics():
+    """获取统计信息"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT COUNT(*) FROM rulings")
+    total_records = cursor.fetchone()[0] or 0
+    
+    cursor.execute("SELECT target_name, COUNT(*) as c FROM rulings WHERE target_name IS NOT NULL AND target_name != '' GROUP BY target_name ORDER BY c DESC LIMIT 1")
+    top_user_row = cursor.fetchone()
+    top_user = f"{top_user_row[0]} ({top_user_row[1]}次)" if top_user_row else "无"
+    
+    cursor.execute("SELECT admin_name, COUNT(*) as c FROM rulings WHERE admin_name IS NOT NULL AND admin_name != '' GROUP BY admin_name ORDER BY c DESC LIMIT 1")
+    top_admin_row = cursor.fetchone()
+    top_admin = f"{top_admin_row[0]} ({top_admin_row[1]}次)" if top_admin_row else "无"
+    
+    import datetime
+    cursor.execute("SELECT created_at FROM rulings WHERE created_at IS NOT NULL AND created_at != ''")
+    rows = cursor.fetchall()
+    conn.close()
+    
+    yesterday_records = 0
+    now_bj = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
+    yesterday_bj_date = (now_bj - datetime.timedelta(days=1)).date()
+    
+    for row in rows:
+        created_at = row[0]
+        try:
+            clean_str = str(created_at)[:19].replace('T', ' ')
+            dt = datetime.datetime.strptime(clean_str, "%Y-%m-%d %H:%M:%S")
+            dt_bj = dt + datetime.timedelta(hours=8)
+            if dt_bj.date() == yesterday_bj_date:
+                yesterday_records += 1
+        except Exception:
+            pass
+
+    return total_records, top_user, top_admin, yesterday_records
+
 # --- 核心爬虫逻辑 (同步函数) ---
 def fetch_and_save_sync():
     cookie = get_cookie()
@@ -275,6 +313,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🤖 NodeSeek Ruling Bot 已启动！\n"
         "可用命令：\n"
         "🔍 `/search 用户名` - 查询特定用户的处罚记录\n"
+        "📊 `/static` - 查看管理记录统计信息\n"
         "🍪 `/setcookie 你的cookie` - 更新爬虫使用的 Cookie\n"
         "▶️ `/run` - 立即手动执行一次抓取\n\n"
         f"🕒 最后爬取时间：{last_time}"
@@ -382,6 +421,26 @@ async def set_cookie_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_cookie(new_cookie)
     await update.message.reply_text(f"✅ Cookie 已成功更新并保存！\n\n🕒 最后爬取时间：{last_time}")
 
+async def static_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """响应 /static 命令"""
+    last_time = get_last_scan_time()
+    
+    try:
+        total_records, top_user, top_admin, yesterday_records = get_statistics()
+        
+        reply_text = (
+            f"📊 **统计信息**\n\n"
+            f"🗂 **总的管理记录数量**: `{total_records}`\n"
+            f"👤 **管理记录最多的用户**: `{top_user}`\n"
+            f"👮 **管理记录最多的管理员**: `{top_admin}`\n"
+            f"📅 **前一天的管理记录数量**: `{yesterday_records}`\n\n"
+            f"🕒 最后爬取时间：{last_time}"
+        )
+    except Exception as e:
+        reply_text = f"⚠️ 获取统计信息时出错：{e}\n\n🕒 最后爬取时间：{last_time}"
+
+    await update.message.reply_text(reply_text, parse_mode='Markdown')
+
 async def run_scraper_task(context: ContextTypes.DEFAULT_TYPE):
     status = await asyncio.to_thread(fetch_and_save_sync)
     last_time = get_last_scan_time()
@@ -417,6 +476,7 @@ def main():
     app.add_handler(CommandHandler("search", search_user))
     app.add_handler(CommandHandler("setcookie", set_cookie_cmd))
     app.add_handler(CommandHandler("run", manual_run))
+    app.add_handler(CommandHandler("static", static_cmd))
     
     app.add_handler(CallbackQueryHandler(search_callback, pattern="^s\|"))
 
