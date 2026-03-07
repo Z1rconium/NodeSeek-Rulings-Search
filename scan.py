@@ -125,7 +125,8 @@ def get_statistics():
     yesterday_records = 0
     now_bj = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
     yesterday_bj_date = (now_bj - datetime.timedelta(days=1)).date()
-    
+    day_counter = {}
+
     for row in rows:
         created_at = row[0]
         try:
@@ -134,10 +135,18 @@ def get_statistics():
             dt_bj = dt + datetime.timedelta(hours=8)
             if dt_bj.date() == yesterday_bj_date:
                 yesterday_records += 1
+            date_str = dt_bj.strftime("%Y-%m-%d")
+            day_counter[date_str] = day_counter.get(date_str, 0) + 1
         except Exception:
             pass
 
-    return total_records, top_user, top_admin, yesterday_records
+    if day_counter:
+        busiest_day = max(day_counter, key=day_counter.get)
+        busiest_day_str = f"{busiest_day} ({day_counter[busiest_day]}条)"
+    else:
+        busiest_day_str = "无"
+
+    return total_records, top_user, top_admin, yesterday_records, busiest_day_str
 
 # --- 核心爬虫逻辑 (同步函数) ---
 def fetch_and_save_sync():
@@ -450,14 +459,15 @@ async def static_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     last_time = get_last_scan_time()
     
     try:
-        total_records, top_user, top_admin, yesterday_records = get_statistics()
+        total_records, top_user, top_admin, yesterday_records, busiest_day = get_statistics()
         
         reply_text = (
             f"📊 **统计信息**\n\n"
             f"🗂 **总的管理记录数量**: `{total_records}`\n"
             f"👤 **管理记录最多的用户**: `{top_user}`\n"
             f"👮 **管理记录最多的管理员**: `{top_admin}`\n"
-            f"📅 **前一天的管理记录数量**: `{yesterday_records}`\n\n"
+            f"📅 **前一天的管理记录数量**: `{yesterday_records}`\n"
+            f"📆 **管理记录最多的日子**: `{busiest_day}`\n\n"
             f"🕒 最后爬取时间：{last_time}"
         )
     except Exception as e:
