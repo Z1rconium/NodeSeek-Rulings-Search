@@ -260,6 +260,14 @@ def translate_action_request(req):
             else:
                 rank = ps.get("rank")
                 category = ps.get("category")
+                category_map = {
+                    "inside": "内板", "trade": "交易", "meaningless": "无意义",
+                    "promotion": "推广", "info": "情报", "dev": "技术",
+                    "carpool": "拼车", "review": "测评", "daily": "日常",
+                    "expose": "曝光", "life": "生活", "photo-share": "贴图",
+                }
+                if category is not None:
+                    category = category_map.get(category, category)
                 if rank is not None and category is not None:
                     res.append(f"帖子的阅读等级设置为{rank}，并且移动到{category}板块")
                 elif category is not None:
