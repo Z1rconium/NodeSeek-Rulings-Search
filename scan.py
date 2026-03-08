@@ -367,7 +367,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(welcome_text, parse_mode='Markdown', link_preview_options=NO_PREVIEW)
 
 async def send_search_page(update: Update, target: str, page: int, is_callback: bool = False):
-    """统一处理发送或更新分页消息的逻辑 (已修复格式转义问题)"""
     per_page = 5
     total_count, results = get_search_results(target, page, per_page)
     
@@ -400,21 +399,13 @@ async def send_search_page(update: Update, target: str, page: int, is_callback: 
         except Exception:
             created_at_bj = str(created_at)
         
-        # 构建原帖链接
-        link_line = ""
-        if post_id:
-            post_url = f"https://www.nodeseek.com/post-{post_id}"
-            link_line = f"🔗 <b>原帖</b>: <a href=\"{post_url}\">post-{post_id}</a>\n"
-        
-        # 构建管理记录链接
-        ruling_url = f"https://www.nodeseek.com/api/admin/ruling/id-{record_id}"
+        ruling_url = f"https://www.nodeseek.com/ruling#/id-{record_id}"
         ruling_line = f"📋 <b>管理记录</b>: <a href=\"{ruling_url}\">id-{record_id}</a>\n"
         
         line = (f"🆔 <b>ID</b>: <code>{record_id}</code>\n"
                 f"👮 <b>操作人</b>: {admin_name_esc}\n"
                 f"📝 <b>原因/操作</b>: {action_request_esc}\n"
                 f"🕒 <b>时间</b>: {created_at_bj}\n"
-                f"{link_line}"
                 f"{ruling_line}"
                 f"{'-'*20}")
         msg_lines.append(line)
