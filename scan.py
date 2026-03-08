@@ -6,9 +6,12 @@ import random
 import os
 import html
 from curl_cffi import requests
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, LinkPreviewOptions
 from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler
 import datetime
+
+# 全局禁用链接预览
+NO_PREVIEW = LinkPreviewOptions(is_disabled=True)
 
 # ================= 配置区域 =================
 CONFIG_FILE = "config.json"
@@ -95,7 +98,7 @@ def get_search_results(target, page, per_page=5):
     
     offset = (page - 1) * per_page
     cursor.execute(
-        "SELECT id, admin_name, action_request, created_at FROM rulings WHERE target_name LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?", 
+        "SELECT id, admin_name, action_request, created_at, post_id FROM rulings WHERE target_name LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?", 
         (f"%{target}%", per_page, offset)
     )
     results = cursor.fetchall()
@@ -361,7 +364,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "▶️ `/run` - 立即手动执行一次抓取\n\n"
         f"🕒 最后爬取时间：{last_time}"
     )
-    await update.message.reply_text(welcome_text, parse_mode='Markdown')
+    await update.message.reply_text(welcome_text, parse_mode='Markdown', link_preview_options=NO_PREVIEW)
 
 async def send_search_page(update: Update, target: str, page: int, is_callback: bool = False):
     """统一处理发送或更新分页消息的逻辑 (已修复格式转义问题)"""
@@ -374,16 +377,16 @@ async def send_search_page(update: Update, target: str, page: int, is_callback: 
         last_time = get_last_scan_time()
         text = f"📭 数据库中未找到关于 <code>{target_esc}</code> 的记录。\n\n🕒 最后爬取时间：{last_time}"
         if is_callback:
-            await update.callback_query.edit_message_text(text, parse_mode='HTML')
+            await update.callback_query.edit_message_text(text, parse_mode='HTML', link_preview_options=NO_PREVIEW)
         else:
-            await update.message.reply_text(text, parse_mode='HTML')
+            await update.message.reply_text(text, parse_mode='HTML', link_preview_options=NO_PREVIEW)
         return
 
     total_pages = (total_count + per_page - 1) // per_page
     
     msg_lines = [f"🔍 <b>关于 <code>{target_esc}</code> 的检索结果 (共 {total_count} 条，第 {page}/{total_pages} 页)：</b>\n"]
     for row in results:
-        record_id, admin_name, action_request, created_at = row
+        record_id, admin_name, action_request, created_at, post_id = row
         
         admin_name_esc = html.escape(str(admin_name))
         action_request_translated = translate_action_request(action_request)
@@ -397,10 +400,22 @@ async def send_search_page(update: Update, target: str, page: int, is_callback: 
         except Exception:
             created_at_bj = str(created_at)
         
+        # 构建原帖链接
+        link_line = ""
+        if post_id:
+            post_url = f"https://www.nodeseek.com/post-{post_id}"
+            link_line = f"🔗 <b>原帖</b>: <a href=\"{post_url}\">post-{post_id}</a>\n"
+        
+        # 构建管理记录链接
+        ruling_url = f"https://www.nodeseek.com/api/admin/ruling/id-{record_id}"
+        ruling_line = f"📋 <b>管理记录</b>: <a href=\"{ruling_url}\">id-{record_id}</a>\n"
+        
         line = (f"🆔 <b>ID</b>: <code>{record_id}</code>\n"
                 f"👮 <b>操作人</b>: {admin_name_esc}\n"
                 f"📝 <b>原因/操作</b>: {action_request_esc}\n"
                 f"🕒 <b>时间</b>: {created_at_bj}\n"
+                f"{link_line}"
+                f"{ruling_line}"
                 f"{'-'*20}")
         msg_lines.append(line)
     
@@ -421,21 +436,21 @@ async def send_search_page(update: Update, target: str, page: int, is_callback: 
     reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
     
     if is_callback:
-        await update.callback_query.edit_message_text(reply_text, parse_mode='HTML', reply_markup=reply_markup)
+        await update.callback_query.edit_message_text(reply_text, parse_mode='HTML', reply_markup=reply_markup, link_preview_options=NO_PREVIEW)
     else:
-        await update.message.reply_text(reply_text, parse_mode='HTML', reply_markup=reply_markup)
+        await update.message.reply_text(reply_text, parse_mode='HTML', reply_markup=reply_markup, link_preview_options=NO_PREVIEW)
 
 async def search_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """响应 /search 命令"""
     last_time = get_last_scan_time()
     if not context.args:
-        await update.message.reply_text(f"⚠️ 请提供要搜索的用户名。用法：`/search 用户名`\n\n🕒 最后爬取时间：{last_time}", parse_mode='Markdown')
+        await update.message.reply_text(f"⚠️ 请提供要搜索的用户名。用法：`/search 用户名`\n\n🕒 最后爬取时间：{last_time}", parse_mode='Markdown', link_preview_options=NO_PREVIEW)
         return
 
     target = " ".join(context.args)
     
     if len(target.encode('utf-8')) > 40:
-        await update.message.reply_text(f"⚠️ 搜索的用户名过长，请缩短后重试。\n\n🕒 最后爬取时间：{last_time}")
+        await update.message.reply_text(f"⚠️ 搜索的用户名过长，请缩短后重试。\n\n🕒 最后爬取时间：{last_time}", link_preview_options=NO_PREVIEW)
         return
 
     await send_search_page(update, target, page=1, is_callback=False)
@@ -457,17 +472,17 @@ async def search_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def set_cookie_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     last_time = get_last_scan_time()
     if not context.args or len(context.args) < 2:
-        await update.message.reply_text(f"⚠️ 请提供密码和 Cookie 内容。用法：\n`/setcookie 密码 session=xxx; cf_clearance=yyy...`\n\n🕒 最后爬取时间：{last_time}", parse_mode='Markdown')
+        await update.message.reply_text(f"⚠️ 请提供密码和 Cookie 内容。用法：\n`/setcookie 密码 session=xxx; cf_clearance=yyy...`\n\n🕒 最后爬取时间：{last_time}", parse_mode='Markdown', link_preview_options=NO_PREVIEW)
         return
 
     input_password = context.args[0]
     if input_password != PASSWORD:
-        await update.message.reply_text("❌ 密码错误，无法更新 Cookie。")
+        await update.message.reply_text("❌ 密码错误，无法更新 Cookie。", link_preview_options=NO_PREVIEW)
         return
 
     new_cookie = " ".join(context.args[1:])
     save_cookie(new_cookie)
-    await update.message.reply_text(f"✅ Cookie 已成功更新并保存！\n\n🕒 最后爬取时间：{last_time}")
+    await update.message.reply_text(f"✅ Cookie 已成功更新并保存！\n\n🕒 最后爬取时间：{last_time}", link_preview_options=NO_PREVIEW)
 
 async def static_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """响应 /static 命令"""
@@ -488,7 +503,7 @@ async def static_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         reply_text = f"⚠️ 获取统计信息时出错：{e}\n\n🕒 最后爬取时间：{last_time}"
 
-    await update.message.reply_text(reply_text, parse_mode='Markdown')
+    await update.message.reply_text(reply_text, parse_mode='Markdown', link_preview_options=NO_PREVIEW)
 
 async def run_scraper_task(context: ContextTypes.DEFAULT_TYPE):
     status = await asyncio.to_thread(fetch_and_save_sync)
@@ -502,20 +517,20 @@ async def run_scraper_task(context: ContextTypes.DEFAULT_TYPE):
             "`/setcookie 你的新Cookie内容`\n\n"
             f"🕒 最后爬取时间：{last_time}"
         )
-        await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=warning_msg, parse_mode='Markdown')
+        await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=warning_msg, parse_mode='Markdown', link_preview_options=NO_PREVIEW)
     elif status == "NO_COOKIE":
-        await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"⚠️ 爬虫未能启动：未找到 Cookie，请使用 `/setcookie` 设置。\n\n🕒 最后爬取时间：{last_time}")
+        await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"⚠️ 爬虫未能启动：未找到 Cookie，请使用 `/setcookie` 设置。\n\n🕒 最后爬取时间：{last_time}", link_preview_options=NO_PREVIEW)
     elif status.startswith("DONE"):
         count = status.split("_")[1]
         if int(count) > 0:
-            await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"✅ 定时抓取完成，新增 `{count}` 条数据。\n\n🕒 最后爬取时间：{last_time}", parse_mode='Markdown')
+            await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"✅ 定时抓取完成，新增 `{count}` 条数据。\n\n🕒 最后爬取时间：{last_time}", parse_mode='Markdown', link_preview_options=NO_PREVIEW)
 
 async def manual_run(update: Update, context: ContextTypes.DEFAULT_TYPE):
     last_time = get_last_scan_time()
-    await update.message.reply_text(f"⏳ 开始执行后台抓取，这可能需要一点时间...\n\n🕒 最后爬取时间：{last_time}")
+    await update.message.reply_text(f"⏳ 开始执行后台抓取，这可能需要一点时间...\n\n🕒 最后爬取时间：{last_time}", link_preview_options=NO_PREVIEW)
     await run_scraper_task(context)
     last_time = get_last_scan_time()
-    await update.message.reply_text(f"🏁 手动抓取任务执行完毕（如有403会自动发送警告）。\n\n🕒 最后爬取时间：{last_time}")
+    await update.message.reply_text(f"🏁 手动抓取任务执行完毕（如有403会自动发送警告）。\n\n🕒 最后爬取时间：{last_time}", link_preview_options=NO_PREVIEW)
 
 
 def main():
