@@ -2,9 +2,24 @@ import sqlite3
 import json
 import os
 import html
+import time
+from collections import deque
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler
 import datetime
+
+# --- 限流配置 ---
+query_times = deque()
+MAX_QUERIES_PER_MINUTE = 100
+
+def check_rate_limit():
+    now = time.time()
+    while query_times and now - query_times[0] > 60:
+        query_times.popleft()
+    if len(query_times) >= MAX_QUERIES_PER_MINUTE:
+        return False
+    query_times.append(now)
+    return True
 
 # ================= 配置区域 =================
 CONFIG_FILE = "config.json"
@@ -305,6 +320,10 @@ async def send_search_page(update: Update, target: str, page: int, is_callback: 
 
 async def search_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """响应 /search 命令"""
+    if not check_rate_limit():
+        await update.message.reply_text("⚠️ 访问过于频繁，系统每分钟最多处理 100 次查询，请稍后再试。")
+        return
+
     if not context.args:
         await update.message.reply_text("⚠️ 请提供要搜索的用户名。用法：`/search 用户名`", parse_mode='Markdown')
         return
@@ -320,6 +339,11 @@ async def search_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def search_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """处理用户点击上一页/下一页按钮的事件"""
     query = update.callback_query
+    
+    if not check_rate_limit():
+        await query.answer("⚠️ 访问过于频繁，系统每分钟最多处理 100 次查询，请稍后再试。", show_alert=True)
+        return
+
     await query.answer()
     
     data = query.data
@@ -333,6 +357,10 @@ async def search_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def static_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """响应 /static 命令"""
+    if not check_rate_limit():
+        await update.message.reply_text("⚠️ 访问过于频繁，系统每分钟最多处理 100 次查询，请稍后再试。")
+        return
+
     try:
         total_records, top_user, top_admin, yesterday_records, busiest_day = get_statistics()
         
