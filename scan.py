@@ -89,7 +89,6 @@ def get_last_scraped_id(conn):
     return result[0] if result[0] is not None else 0
 
 def get_search_results(target, page, per_page=5):
-    """获取分页搜索结果"""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     
@@ -106,8 +105,15 @@ def get_search_results(target, page, per_page=5):
     
     return total_count, results
 
+def get_fuzzy_matched_users(keyword):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT DISTINCT target_name FROM rulings WHERE target_name LIKE ? ORDER BY target_name", (f"%{keyword}%",))
+    users = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    return users
+
 def get_statistics():
-    """获取统计信息"""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     
@@ -358,8 +364,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_text = (
         "🤖 NodeSeek Ruling Bot 已启动！\n"
         "可用命令：\n"
-        "🔍 `/search 用户名` - 查询特定用户的处罚记录\n"
-        "📊 `/static` - 查看管理记录统计信息\n"
+        "🔍 `/search 用户名` - 精确查询特定用户的处罚记录\n"
+        "� `/partial_match 关键词` - 模糊搜索用户的处罚记录\n"
+        "�📊 `/static` - 查看管理记录统计信息\n"
         "🍪 `/setcookie 密码 你的cookie` - 更新爬虫使用的 Cookie（需要密码）\n"
         "▶️ `/run` - 立即手动执行一次抓取\n\n"
         f"🕒 最后爬取时间：{last_time}"
@@ -458,7 +465,121 @@ async def search_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if len(parts) == 3:
             page = int(parts[1])
             target = parts[2]
+
             await send_search_page(update, target, page, is_callback=True)
+
+async def partial_match_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    last_time = get_last_scan_time()
+    if not context.args:
+        await update.message.reply_text(f"⚠️ 请提供要搜索的关键词。用法：`/partial_match 关键词`\n\n🕒 最后爬取时间：{last_time}", parse_mode='Markdown', link_preview_options=NO_PREVIEW)
+        return
+
+    keyword = " ".join(context.args)
+    if len(keyword.encode('utf-8')) > 40:
+        await update.message.reply_text(f"⚠️ 搜索的关键词过长，请缩短后重试。\n\n🕒 最后爬取时间：{last_time}", link_preview_options=NO_PREVIEW)
+        return
+
+    users = get_fuzzy_matched_users(keyword)
+
+    if len(users) == 0:
+        await update.message.reply_text(f"📭 数据库中未找到包含 `{html.escape(keyword)}` 的用户。\n\n🕒 最后爬取时间：{last_time}", parse_mode='Markdown', link_preview_options=NO_PREVIEW)
+    elif len(users) == 1:
+        await send_search_page(update, users[0], page=1, is_callback=False)
+    else:
+        await send_fuzzy_user_list(update, keyword, users, is_callback=False)
+
+async def send_fuzzy_user_list(update: Update, keyword: str, users: list, is_callback: bool = False):
+    keyword_esc = html.escape(keyword)
+    last_time = get_last_scan_time()
+    text = f"🔎 <b>关键词 <code>{keyword_esc}</code> 匹配到 {len(users)} 个用户，请选择：</b>\n\n🕒 最后爬取时间：{last_time}"
+
+    keyboard = []
+    for user in users:
+        keyboard.append([InlineKeyboardButton(user, callback_data=f"fu|{keyword}|{user}")])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    if is_callback:
+        await update.callback_query.edit_message_text(text, parse_mode='HTML', reply_markup=reply_markup, link_preview_options=NO_PREVIEW)
+    else:
+        await update.message.reply_text(text, parse_mode='HTML', reply_markup=reply_markup, link_preview_options=NO_PREVIEW)
+
+async def send_fuzzy_detail_page(update: Update, keyword: str, target: str, page: int):
+    per_page = 5
+    total_count, results = get_search_results(target, page, per_page)
+    target_esc = html.escape(target)
+
+    if total_count == 0:
+        last_time = get_last_scan_time()
+        text = f"📭 数据库中未找到关于 <code>{target_esc}</code> 的记录。\n\n🕒 最后爬取时间：{last_time}"
+        await update.callback_query.edit_message_text(text, parse_mode='HTML', link_preview_options=NO_PREVIEW)
+        return
+
+    total_pages = (total_count + per_page - 1) // per_page
+
+    msg_lines = [f"🔍 <b>关于 <code>{target_esc}</code> 的检索结果 (共 {total_count} 条，第 {page}/{total_pages} 页)：</b>\n"]
+    for row in results:
+        record_id, admin_name, action_request, created_at, post_id = row
+        admin_name_esc = html.escape(str(admin_name))
+        action_request_translated = translate_action_request(action_request)
+        action_request_esc = html.escape(action_request_translated)
+        try:
+            clean_str = str(created_at)[:19].replace('T', ' ')
+            dt = datetime.datetime.strptime(clean_str, "%Y-%m-%d %H:%M:%S")
+            dt_bj = dt + datetime.timedelta(hours=8)
+            created_at_bj = dt_bj.strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            created_at_bj = str(created_at)
+        ruling_url = f"https://www.nodeseek.com/ruling#/id-{record_id}"
+        ruling_line = f"📋 <b>管理记录</b>: <a href=\"{ruling_url}\">id-{record_id}</a>\n"
+        line = (f"👤 <b>用户名</b>: <code>{target_esc}</code>\n"
+                f"👮 <b>操作人</b>: {admin_name_esc}\n"
+                f"📝 <b>原因/操作</b>: {action_request_esc}\n"
+                f"🕒 <b>时间</b>: {created_at_bj}\n"
+                f"{ruling_line}"
+                f"{'-'*20}")
+        msg_lines.append(line)
+
+    last_time = get_last_scan_time()
+    msg_lines.append(f"\n🕒 最后爬取时间：{last_time}")
+    reply_text = "\n".join(msg_lines)
+
+    keyboard = []
+    nav_row = []
+    if page > 1:
+        nav_row.append(InlineKeyboardButton("⬅️ 上一页", callback_data=f"fp|{keyword}|{target}|{page-1}"))
+    if page < total_pages:
+        nav_row.append(InlineKeyboardButton("下一页 ➡️", callback_data=f"fp|{keyword}|{target}|{page+1}"))
+    if nav_row:
+        keyboard.append(nav_row)
+    keyboard.append([InlineKeyboardButton("🔙 返回用户列表", callback_data=f"fb|{keyword}")])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.callback_query.edit_message_text(reply_text, parse_mode='HTML', reply_markup=reply_markup, link_preview_options=NO_PREVIEW)
+
+async def fuzzy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+
+    if data.startswith("fu|"):
+        # 用户选择了某个匹配用户 -> 显示该用户第1页
+        parts = data.split("|", 2)
+        if len(parts) == 3:
+            keyword, target = parts[1], parts[2]
+            await send_fuzzy_detail_page(update, keyword, target, page=1)
+
+    elif data.startswith("fp|"):
+        # 翻页
+        parts = data.split("|", 3)
+        if len(parts) == 4:
+            keyword, target, page = parts[1], parts[2], int(parts[3])
+            await send_fuzzy_detail_page(update, keyword, target, page)
+
+    elif data.startswith("fb|"):
+        # 返回用户列表
+        keyword = data.split("|", 1)[1]
+        users = get_fuzzy_matched_users(keyword)
+        await send_fuzzy_user_list(update, keyword, users, is_callback=True)
 
 async def set_cookie_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     last_time = get_last_scan_time()
@@ -529,11 +650,13 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("search", search_user))
+    app.add_handler(CommandHandler("partial_match", partial_match_cmd))
     app.add_handler(CommandHandler("setcookie", set_cookie_cmd))
     app.add_handler(CommandHandler("run", manual_run))
     app.add_handler(CommandHandler("static", static_cmd))
     
     app.add_handler(CallbackQueryHandler(search_callback, pattern="^s\|"))
+    app.add_handler(CallbackQueryHandler(fuzzy_callback, pattern="^f[ubp]\|"))
 
     app.job_queue.run_repeating(run_scraper_task, interval=6 * 3600, first=0, name="interval_scraper")
 
