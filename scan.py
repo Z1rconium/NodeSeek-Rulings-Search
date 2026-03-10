@@ -535,9 +535,7 @@ def main():
     
     app.add_handler(CallbackQueryHandler(search_callback, pattern="^s\|"))
 
-    import datetime
-    t = datetime.time(hour=0, minute=0, second=0) 
-    app.job_queue.run_daily(run_scraper_task, time=t, name="daily_scraper")
+    app.job_queue.run_repeating(run_scraper_task, interval=6 * 3600, first=0, name="interval_scraper")
 
     print("Bot 启动中...")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
