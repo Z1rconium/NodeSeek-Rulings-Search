@@ -402,7 +402,7 @@ async def send_search_page(update: Update, target: str, page: int, is_callback: 
         ruling_url = f"https://www.nodeseek.com/ruling#/id-{record_id}"
         ruling_line = f"📋 <b>管理记录</b>: <a href=\"{ruling_url}\">id-{record_id}</a>\n"
         
-        line = (f"🆔 <b>ID</b>: <code>{record_id}</code>\n"
+        line = (f"👤 <b>用户名</b>: <code>{target_esc}</code>\n"
                 f"👮 <b>操作人</b>: {admin_name_esc}\n"
                 f"📝 <b>原因/操作</b>: {action_request_esc}\n"
                 f"🕒 <b>时间</b>: {created_at_bj}\n"
