@@ -93,13 +93,13 @@ def get_search_results(target, page, per_page=5):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     
-    cursor.execute("SELECT COUNT(*) FROM rulings WHERE target_name LIKE ?", (f"%{target}%",))
+    cursor.execute("SELECT COUNT(*) FROM rulings WHERE target_name = ?", (target,))
     total_count = cursor.fetchone()[0]
     
     offset = (page - 1) * per_page
     cursor.execute(
-        "SELECT id, admin_name, action_request, created_at, post_id FROM rulings WHERE target_name LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?", 
-        (f"%{target}%", per_page, offset)
+        "SELECT id, admin_name, action_request, created_at, post_id FROM rulings WHERE target_name = ? ORDER BY id DESC LIMIT ? OFFSET ?",
+        (target, per_page, offset)
     )
     results = cursor.fetchall()
     conn.close()
