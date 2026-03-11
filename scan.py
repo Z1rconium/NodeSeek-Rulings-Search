@@ -105,6 +105,52 @@ def get_search_results(target, page, per_page=5):
     
     return total_count, results
 
+def get_all_records_for_user(target):
+    """获取用户的所有管理记录，用于生成 AI prompt"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id, admin_name, action_request, created_at, post_id FROM rulings WHERE target_name = ? ORDER BY id ASC",
+        (target,)
+    )
+    results = cursor.fetchall()
+    conn.close()
+    return results
+
+def generate_ai_prompt(target, records):
+    """生成用于 AI 分析用户诚信情况的 prompt"""
+    record_lines = []
+    for row in records:
+        record_id, admin_name, action_request, created_at, post_id = row
+        action_translated = translate_action_request(action_request)
+        try:
+            clean_str = str(created_at)[:19].replace('T', ' ')
+            dt = datetime.datetime.strptime(clean_str, "%Y-%m-%d %H:%M:%S")
+            dt_bj = dt + datetime.timedelta(hours=8)
+            created_at_bj = dt_bj.strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            created_at_bj = str(created_at)
+        record_lines.append(f"- 记录ID: {record_id} | 操作管理员: {admin_name} | 操作内容: {action_translated} | 时间: {created_at_bj}")
+    
+    records_text = "\n".join(record_lines)
+    
+    prompt = (
+        f"请根据以下 NodeSeek 论坛用户 \"{target}\" 的管理处罚记录，对该用户进行诚信分析评分。\n"
+        f"\n"
+        f"评分维度（满分100分）：\n"
+        f"1. 诚信度（50分）：分析用户是否存在欺诈、虚假交易、恶意行为等不诚信行为，根据处罚记录的严重程度和频次评分。\n"
+        f"2. 遵守论坛规则（50分）：分析用户是否遵守论坛发帖规范、板块规则、禁言记录等，根据违规类型和频率评分。\n"
+        f"\n"
+        f"要求：\n"
+        f"- 分别给出两个维度的得分和扣分理由\n"
+        f"- 给出总分和综合评价\n"
+        f"- 如果记录较少，适当从宽评价\n"
+        f"\n"
+        f"以下是该用户的全部管理记录（共{len(records)}条）：\n"
+        f"{records_text}"
+    )
+    return prompt
+
 def get_fuzzy_matched_users(keyword):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -419,6 +465,15 @@ async def send_search_page(update: Update, target: str, page: int, is_callback: 
     
     last_time = get_last_scan_time()
     msg_lines.append(f"\n🕒 最后爬取时间：{last_time}")
+    
+    # 在最后一页添加 AI 分析 prompt
+    if page == total_pages:
+        all_records = get_all_records_for_user(target)
+        ai_prompt = generate_ai_prompt(target, all_records)
+        ai_prompt_esc = html.escape(ai_prompt)
+        msg_lines.append(f"\n🤖 <b>AI 诚信分析 Prompt（点击复制）：</b>")
+        msg_lines.append(f"<pre>{ai_prompt_esc}</pre>")
+    
     reply_text = "\n".join(msg_lines)
     
     keyboard = []
@@ -541,6 +596,15 @@ async def send_fuzzy_detail_page(update: Update, keyword: str, target: str, page
 
     last_time = get_last_scan_time()
     msg_lines.append(f"\n🕒 最后爬取时间：{last_time}")
+    
+    # 在最后一页添加 AI 分析 prompt
+    if page == total_pages:
+        all_records = get_all_records_for_user(target)
+        ai_prompt = generate_ai_prompt(target, all_records)
+        ai_prompt_esc = html.escape(ai_prompt)
+        msg_lines.append(f"\n🤖 <b>AI 诚信分析 Prompt（点击复制）：</b>")
+        msg_lines.append(f"<pre>{ai_prompt_esc}</pre>")
+    
     reply_text = "\n".join(msg_lines)
 
     keyboard = []
