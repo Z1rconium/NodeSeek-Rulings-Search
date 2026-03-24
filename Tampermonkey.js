@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NodeSeek 用户管理记录快捷查询
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  在帖子的每个用户名旁边添加一个按钮触发用户管理记录查询
 // @author       Kingrz
 // @match        *://www.nodeseek.com/post-*
@@ -147,12 +147,20 @@
         }
 
         const blocks = data.records.map(record => {
+            const rawRecordId = String(record.id || '').trim();
+            const rulingRecordId = rawRecordId
+                ? (rawRecordId.startsWith('id-') ? rawRecordId : `id-${rawRecordId}`)
+                : '';
+            const rulingRecordLink = rulingRecordId
+                ? `<a href="https://www.nodeseek.com/ruling#/${encodeURIComponent(rulingRecordId)}" target="_blank" rel="noopener noreferrer" style="color:#2563eb; text-decoration:none;">${escapeHtml(rulingRecordId)}</a>`
+                : '-';
+
             return `
-                <div style="border:1px solid #e5e7eb; border-radius:8px; padding:10px 12px; margin-bottom:10px; background:#fff;">
-                    <div><strong>ID:</strong> ${escapeHtml(record.id)}</div>
-                    <div><strong>操作人:</strong> ${escapeHtml(record.admin_name || '')}</div>
-                    <div><strong>原因/操作:</strong> ${escapeHtml(record.action_request || '')}</div>
-                    <div><strong>时间:</strong> ${escapeHtml(record.created_at_bj || record.created_at || '')}</div>
+                <div style="border:1px solid #e5e7eb; border-radius:8px; padding:10px 12px; margin-bottom:10px; background:#fff; line-height:1.8;">
+                    <div>👮 操作人: ${escapeHtml(record.admin_name || '')}</div>
+                    <div>📝 原因/操作: ${escapeHtml(record.action_request || '')}</div>
+                    <div>🕒 时间: ${escapeHtml(record.created_at_bj || record.created_at || '')}</div>
+                    <div>📋 管理记录: ${rulingRecordLink}</div>
                 </div>
             `;
         });
