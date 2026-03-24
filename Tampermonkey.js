@@ -67,24 +67,24 @@
             <style>
                 #ns-ruling-panel * { box-sizing: border-box; }
                 #ns-ruling-panel button:disabled { opacity: 0.5; cursor: not-allowed !important; }
-                .ns-ruling-btn-outline:hover:not(:disabled) { background: #e6f2fb !important; }
-                .ns-ruling-btn-filled:hover:not(:disabled) { background: #005a9e !important; }
+                .ns-ruling-btn-outline:hover:not(:disabled) { background: rgba(230, 242, 251, 0.9) !important; }
+                .ns-ruling-btn-filled:hover:not(:disabled) { background: rgba(0, 90, 158, 0.9) !important; }
                 #ns-ruling-close:hover { background: #e81123 !important; color: #ffffff !important; }
-                .ns-ruling-record { border: 1px solid #cce4f7; border-left: 4px solid #0078d4; border-radius: 6px; background: #ffffff; transition: background 0.2s; padding: 12px; margin-bottom: 12px; line-height: 1.6; }
-                .ns-ruling-record:hover { background: #e6f2fb; }
+                .ns-ruling-record { border: 1px solid rgba(204, 228, 247, 0.6); border-left: 4px solid #0078d4; border-radius: 6px; background: rgba(255, 255, 255, 0.6); transition: background 0.2s; padding: 12px; margin-bottom: 12px; line-height: 1.6; }
+                .ns-ruling-record:hover { background: rgba(230, 242, 251, 0.8); }
             </style>
-            <div id="ns-ruling-overlay" style="position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 99998; display: none;"></div>
-            <div id="ns-ruling-panel" style="position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(860px, 95vw); max-height: 85vh; overflow: hidden; background: #ffffff; border: 1px solid #0078d4; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 99999; display: none; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; font-size: 14px; color: #333333;">
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #0078d4; color: #ffffff;">
+            <div id="ns-ruling-overlay" style="position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 99998; display: none;"></div>
+            <div id="ns-ruling-panel" style="position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(860px, 95vw); max-height: 85vh; overflow: hidden; background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(0, 120, 212, 0.6); border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); z-index: 99999; display: none; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; font-size: 14px; color: #333333;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(0, 120, 212, 0.85); color: #ffffff;">
                     <div id="ns-ruling-title" style="font-weight: 600; font-size: 15px;">管理记录</div>
                     <button id="ns-ruling-close" style="border: 0; background: transparent; font-size: 16px; cursor: pointer; color: #ffffff; line-height: 1; padding: 8px 12px; margin: -12px -16px; transition: background 0.2s;">✕</button>
                 </div>
-                <div id="ns-ruling-content" style="padding: 16px; max-height: calc(85vh - 100px); overflow-y: auto; background: #f4f8fc;"></div>
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid #dcdcdc; background: #f0f0f0;">
+                <div id="ns-ruling-content" style="padding: 16px; max-height: calc(85vh - 100px); overflow-y: auto; background: rgba(244, 248, 252, 0.4);"></div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid rgba(220, 220, 220, 0.6); background: rgba(240, 240, 240, 0.5);">
                     <div id="ns-ruling-page-info" style="color: #666666;"></div>
                     <div style="display: flex; gap: 8px;">
-                        <button id="ns-ruling-prev" class="ns-ruling-btn-outline" style="border: 1px solid #0078d4; border-radius: 6px; background: #ffffff; color: #0078d4; padding: 6px 16px; cursor: pointer;">上一页</button>
-                        <button id="ns-ruling-next" class="ns-ruling-btn-filled" style="border: 1px solid #0078d4; border-radius: 6px; background: #0078d4; color: #ffffff; padding: 6px 16px; cursor: pointer;">下一页</button>
+                        <button id="ns-ruling-prev" class="ns-ruling-btn-outline" style="border: 1px solid #0078d4; border-radius: 6px; background: rgba(255, 255, 255, 0.8); color: #0078d4; padding: 6px 16px; cursor: pointer;">上一页</button>
+                        <button id="ns-ruling-next" class="ns-ruling-btn-filled" style="border: 1px solid #0078d4; border-radius: 6px; background: rgba(0, 120, 212, 0.9); color: #ffffff; padding: 6px 16px; cursor: pointer;">下一页</button>
                     </div>
                 </div>
             </div>
@@ -295,7 +295,7 @@
                 <div style="color:#333333; margin-bottom:12px;">检测到访问保护，请先完成验证码。</div>
                 <div id="ns-turnstile-box" style="display:flex; justify-content:center; margin:16px 0;"></div>
                 <div style="display:flex; justify-content:flex-end;">
-                    <button id="ns-turnstile-cancel" class="ns-ruling-btn-outline" style="border:1px solid #0078d4; border-radius:6px; background:#ffffff; color:#0078d4; padding:6px 16px; cursor:pointer;">取消</button>
+                    <button id="ns-turnstile-cancel" class="ns-ruling-btn-outline" style="border:1px solid #0078d4; border-radius:6px; background:rgba(255, 255, 255, 0.8); color:#0078d4; padding:6px 16px; cursor:pointer;">取消</button>
                 </div>
             `;
 
@@ -426,23 +426,25 @@
                     fontSize: '12px',
                     userSelect: 'none',
                     color: '#0078d4',
-                    backgroundColor: '#e6f2fb',
+                    backgroundColor: 'rgba(230, 242, 251, 0.65)',
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
                     padding: '2px 8px',
                     borderRadius: '4px',
-                    border: '1px solid #cce4f7',
+                    border: '1px solid rgba(204, 228, 247, 0.6)',
                     transition: 'all 0.2s ease',
                     fontFamily: "'Segoe UI', 'Microsoft YaHei', sans-serif"
                 });
 
                 searchBtn.onmouseenter = () => {
                     searchBtn.style.color = '#ffffff';
-                    searchBtn.style.backgroundColor = '#0078d4';
+                    searchBtn.style.backgroundColor = 'rgba(0, 120, 212, 0.9)';
                     searchBtn.style.borderColor = '#0078d4';
                 };
                 searchBtn.onmouseleave = () => {
                     searchBtn.style.color = '#0078d4';
-                    searchBtn.style.backgroundColor = '#e6f2fb';
-                    searchBtn.style.borderColor = '#cce4f7';
+                    searchBtn.style.backgroundColor = 'rgba(230, 242, 251, 0.65)';
+                    searchBtn.style.borderColor = 'rgba(204, 228, 247, 0.6)';
                 };
 
                 searchBtn.addEventListener('click', (e) => {
