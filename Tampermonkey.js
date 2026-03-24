@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NodeSeek 用户管理记录快捷查询
 // @namespace    http://tampermonkey.net/
-// @version      1.1
+// @version      1.2
 // @description  在帖子的每个用户名旁边添加一个按钮触发用户管理记录查询
 // @author       Kingrz
 // @match        *://www.nodeseek.com/post-*
@@ -11,10 +11,10 @@
 // @connect      *
 // ==/UserScript==
 
-(function() {
+(function () {
     'use strict';
 
-    const USERNAME_SELECTOR = '.post-list-item a.username, .comment-list a.username, a[href^="/space/"]'; 
+    const USERNAME_SELECTOR = '.post-list-item a.username, .comment-list a.username, a[href^="/space/"]';
     const API_BASE_URL = 'https://ruling.shaynewong.dpdns.org/';
     const TURNSTILE_SCRIPT_URL = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
     const PER_PAGE = 5;
@@ -64,18 +64,27 @@
         const modal = document.createElement('div');
         modal.id = 'ns-ruling-modal';
         modal.innerHTML = `
-            <div id="ns-ruling-overlay" style="position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 99998; display: none;"></div>
-            <div id="ns-ruling-panel" style="position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(860px, 95vw); max-height: 85vh; overflow: hidden; background: #fff; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.25); z-index: 99999; display: none; font-size: 14px; color: #1f2937;">
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid #e5e7eb; background: #f9fafb;">
-                    <div id="ns-ruling-title" style="font-weight: 700;">管理记录</div>
-                    <button id="ns-ruling-close" style="border: 0; background: transparent; font-size: 18px; cursor: pointer; color: #6b7280;">✕</button>
+            <style>
+                #ns-ruling-panel * { box-sizing: border-box; }
+                #ns-ruling-panel button:disabled { opacity: 0.5; cursor: not-allowed !important; }
+                .ns-ruling-btn-outline:hover:not(:disabled) { background: #e6f2fb !important; }
+                .ns-ruling-btn-filled:hover:not(:disabled) { background: #005a9e !important; }
+                #ns-ruling-close:hover { background: #e81123 !important; color: #ffffff !important; }
+                .ns-ruling-record { border: 1px solid #cce4f7; border-left: 4px solid #0078d4; border-radius: 6px; background: #ffffff; transition: background 0.2s; padding: 12px; margin-bottom: 12px; line-height: 1.6; }
+                .ns-ruling-record:hover { background: #e6f2fb; }
+            </style>
+            <div id="ns-ruling-overlay" style="position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 99998; display: none;"></div>
+            <div id="ns-ruling-panel" style="position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(860px, 95vw); max-height: 85vh; overflow: hidden; background: #ffffff; border: 1px solid #0078d4; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 99999; display: none; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; font-size: 14px; color: #333333;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #0078d4; color: #ffffff;">
+                    <div id="ns-ruling-title" style="font-weight: 600; font-size: 15px;">管理记录</div>
+                    <button id="ns-ruling-close" style="border: 0; background: transparent; font-size: 16px; cursor: pointer; color: #ffffff; line-height: 1; padding: 8px 12px; margin: -12px -16px; transition: background 0.2s;">✕</button>
                 </div>
-                <div id="ns-ruling-content" style="padding: 14px 16px; max-height: calc(85vh - 120px); overflow-y: auto;"></div>
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-top: 1px solid #e5e7eb; background: #f9fafb;">
-                    <div id="ns-ruling-page-info" style="color: #6b7280;"></div>
+                <div id="ns-ruling-content" style="padding: 16px; max-height: calc(85vh - 100px); overflow-y: auto; background: #f4f8fc;"></div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid #dcdcdc; background: #f0f0f0;">
+                    <div id="ns-ruling-page-info" style="color: #666666;"></div>
                     <div style="display: flex; gap: 8px;">
-                        <button id="ns-ruling-prev" style="border: 1px solid #d1d5db; background: #fff; color: #111827; border-radius: 6px; padding: 4px 10px; cursor: pointer;">上一页</button>
-                        <button id="ns-ruling-next" style="border: 1px solid #d1d5db; background: #fff; color: #111827; border-radius: 6px; padding: 4px 10px; cursor: pointer;">下一页</button>
+                        <button id="ns-ruling-prev" class="ns-ruling-btn-outline" style="border: 1px solid #0078d4; border-radius: 6px; background: #ffffff; color: #0078d4; padding: 6px 16px; cursor: pointer;">上一页</button>
+                        <button id="ns-ruling-next" class="ns-ruling-btn-filled" style="border: 1px solid #0078d4; border-radius: 6px; background: #0078d4; color: #ffffff; padding: 6px 16px; cursor: pointer;">下一页</button>
                     </div>
                 </div>
             </div>
@@ -152,15 +161,15 @@
                 ? (rawRecordId.startsWith('id-') ? rawRecordId : `id-${rawRecordId}`)
                 : '';
             const rulingRecordLink = rulingRecordId
-                ? `<a href="https://www.nodeseek.com/ruling#/${encodeURIComponent(rulingRecordId)}" target="_blank" rel="noopener noreferrer" style="color:#2563eb; text-decoration:none;">${escapeHtml(rulingRecordId)}</a>`
+                ? `<a href="https://www.nodeseek.com/ruling#/${encodeURIComponent(rulingRecordId)}" target="_blank" rel="noopener noreferrer" style="color:#0078d4; text-decoration:none;">${escapeHtml(rulingRecordId)}</a>`
                 : '-';
 
             return `
-                <div style="border:1px solid #e5e7eb; border-radius:8px; padding:10px 12px; margin-bottom:10px; background:#fff; line-height:1.8;">
-                    <div>👮 操作人: ${escapeHtml(record.admin_name || '')}</div>
-                    <div>📝 原因/操作: ${escapeHtml(record.action_request || '')}</div>
-                    <div>🕒 时间: ${escapeHtml(record.created_at_bj || record.created_at || '')}</div>
-                    <div>📋 管理记录: ${rulingRecordLink}</div>
+                <div class="ns-ruling-record">
+                    <div><span style="color:#0078d4; font-weight:600; margin-right:4px;">👮</span> 操作人: ${escapeHtml(record.admin_name || '')}</div>
+                    <div><span style="color:#0078d4; font-weight:600; margin-right:4px;">📝</span> 原因/操作: ${escapeHtml(record.action_request || '')}</div>
+                    <div><span style="color:#0078d4; font-weight:600; margin-right:4px;">🕒</span> 时间: ${escapeHtml(record.created_at_bj || record.created_at || '')}</div>
+                    <div><span style="color:#0078d4; font-weight:600; margin-right:4px;">📋</span> 管理记录: ${rulingRecordLink}</div>
                 </div>
             `;
         });
@@ -283,10 +292,10 @@
 
             const content = document.getElementById('ns-ruling-content');
             content.innerHTML = `
-                <div style="color:#374151; margin-bottom:10px;">检测到访问保护，请先完成验证码。</div>
-                <div id="ns-turnstile-box" style="display:flex; justify-content:center; margin:8px 0 14px;"></div>
-                <div style="display:flex; justify-content:center;">
-                    <button id="ns-turnstile-cancel" style="border:1px solid #d1d5db; background:#fff; color:#111827; border-radius:6px; padding:6px 12px; cursor:pointer;">取消</button>
+                <div style="color:#333333; margin-bottom:12px;">检测到访问保护，请先完成验证码。</div>
+                <div id="ns-turnstile-box" style="display:flex; justify-content:center; margin:16px 0;"></div>
+                <div style="display:flex; justify-content:flex-end;">
+                    <button id="ns-turnstile-cancel" class="ns-ruling-btn-outline" style="border:1px solid #0078d4; border-radius:6px; background:#ffffff; color:#0078d4; padding:6px 16px; cursor:pointer;">取消</button>
                 </div>
             `;
 
@@ -407,37 +416,38 @@
                 if (!username) return;
 
                 const searchBtn = document.createElement('span');
-                searchBtn.innerText = '🔍 查询管理记录'; 
+                searchBtn.innerText = '🔍 查询管理记录';
                 searchBtn.className = 'custom-search-btn';
                 searchBtn.title = `点击查询 ${username} 的管理记录`;
-                
+
                 Object.assign(searchBtn.style, {
                     cursor: 'pointer',
                     marginLeft: '8px',
-                    fontSize: '12px', 
+                    fontSize: '12px',
                     userSelect: 'none',
-                    color: '#555',
-                    backgroundColor: '#f4f4f5',
-                    padding: '2px 6px', 
-                    borderRadius: '4px', 
-                    border: '1px solid #dcdfe6',
-                    transition: 'all 0.2s ease'
+                    color: '#0078d4',
+                    backgroundColor: '#e6f2fb',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    border: '1px solid #cce4f7',
+                    transition: 'all 0.2s ease',
+                    fontFamily: "'Segoe UI', 'Microsoft YaHei', sans-serif"
                 });
 
                 searchBtn.onmouseenter = () => {
-                    searchBtn.style.color = '#fff';
-                    searchBtn.style.backgroundColor = '#909399'; 
-                    searchBtn.style.borderColor = '#909399';
+                    searchBtn.style.color = '#ffffff';
+                    searchBtn.style.backgroundColor = '#0078d4';
+                    searchBtn.style.borderColor = '#0078d4';
                 };
                 searchBtn.onmouseleave = () => {
-                    searchBtn.style.color = '#555';
-                    searchBtn.style.backgroundColor = '#f4f4f5';
-                    searchBtn.style.borderColor = '#dcdfe6';
+                    searchBtn.style.color = '#0078d4';
+                    searchBtn.style.backgroundColor = '#e6f2fb';
+                    searchBtn.style.borderColor = '#cce4f7';
                 };
 
                 searchBtn.addEventListener('click', (e) => {
-                    e.preventDefault();  
-                    e.stopPropagation(); 
+                    e.preventDefault();
+                    e.stopPropagation();
 
                     triggerQuery(username);
                 });
@@ -455,7 +465,7 @@
         loadSearchPage(1);
     }
 
-    setTimeout(injectSearchButtons, 1000); 
+    setTimeout(injectSearchButtons, 1000);
 
     const observer = new MutationObserver((mutations) => {
         let shouldInject = false;
