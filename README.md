@@ -110,6 +110,48 @@ pip install python-telegram-bot[job-queue] curl_cffi
 - **爬取逻辑**：`scan.py` 采用增量抓取策略，每次从数据库中最大的 ID 开始继续向下探测。
 - **时区安全**：程序内部强制使用北京时间（UTC+8）进行日期计算。
 
+## 🔐 Query Backend 安全配置（用于油猴公开查询）
+
+`query_backend.py` 启动时会读取 `query_backend_config.json`。若文件不存在，会自动生成默认模板。
+
+推荐配置示例：
+
+```json
+{
+  "DB_FILE": "nodeseek_ruling.db",
+  "HOST": "0.0.0.0",
+  "PORT": 8765,
+  "MAX_QUERIES_PER_MINUTE": 100,
+  "MAX_QUERIES_PER_IP_PER_MINUTE": 30,
+  "BURST_WINDOW_SECONDS": 10,
+  "BURST_THRESHOLD": 8,
+  "BAN_BASE_SECONDS": 300,
+  "BAN_MAX_SECONDS": 86400,
+  "BAN_RESET_SECONDS": 86400,
+  "STATE_TTL_SECONDS": 86400,
+  "DEFAULT_PER_PAGE": 5,
+  "MAX_PER_PAGE": 20,
+  "TURNSTILE_SITE_KEY": "你的 Turnstile Site Key",
+  "TURNSTILE_SECRET": "你的 Turnstile Secret",
+  "CAPTCHA_BYPASS_SECONDS": 1800,
+  "TRUST_X_FORWARDED_FOR": false
+}
+```
+
+说明：
+
+- 不再使用固定 `API_KEY` 客户端鉴权（避免公开脚本泄露密钥风险）。
+- 同时启用全局限流和单 IP 限流。
+- 在短时间突发请求触发阈值时，会临时封禁该 IP，并采用指数退避延长封禁时间。
+- 启用 Turnstile 后，用户需先完成验证码校验，后端才允许查询。
+- 查询接口保持只读，不会修改数据库内容。
+
+后端接口：
+
+- `GET /api/search?target=<username>&page=1&per_page=5`
+- `GET /api/captcha/config`
+- `GET /api/captcha/verify?token=<turnstile_token>`
+
 ---
 
 *免责声明：本项目仅供学习和研究使用，请勿用于违反论坛规则或法律法规的行为。*
