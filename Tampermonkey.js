@@ -56,6 +56,10 @@
         return '请检查 Turnstile 配置（Key/允许域名）及浏览器拦截策略。';
     }
 
+    function isDarkModePreferred() {
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+
     function ensureModal() {
         if (document.getElementById('ns-ruling-modal')) {
             return;
@@ -65,26 +69,211 @@
         modal.id = 'ns-ruling-modal';
         modal.innerHTML = `
             <style>
+                :root {
+                    --ns-overlay-bg: rgba(15, 23, 42, 0.22);
+                    --ns-panel-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.94) 100%);
+                    --ns-header-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(239, 246, 255, 0.96) 100%);
+                    --ns-content-bg: linear-gradient(180deg, rgba(248, 250, 252, 0.8) 0%, rgba(255, 255, 255, 0.68) 100%);
+                    --ns-footer-bg: rgba(248, 250, 252, 0.82);
+                    --ns-panel-border: rgba(59, 130, 246, 0.2);
+                    --ns-divider: rgba(148, 163, 184, 0.22);
+                    --ns-text: #0f172a;
+                    --ns-title: #0f172a;
+                    --ns-text-muted: #64748b;
+                    --ns-text-soft: #334155;
+                    --ns-accent: #2563eb;
+                    --ns-accent-strong: #2563eb;
+                    --ns-link: #2563eb;
+                    --ns-link-hover: #1d4ed8;
+                    --ns-outline-bg: rgba(255, 255, 255, 0.88);
+                    --ns-outline-text: #1d4ed8;
+                    --ns-outline-border: rgba(59, 130, 246, 0.24);
+                    --ns-outline-hover-bg: rgba(219, 234, 254, 0.9);
+                    --ns-outline-hover-border: rgba(59, 130, 246, 0.4);
+                    --ns-outline-hover-text: #1e40af;
+                    --ns-filled-bg: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                    --ns-filled-text: #eff6ff;
+                    --ns-filled-border: rgba(59, 130, 246, 0.38);
+                    --ns-filled-hover-bg: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+                    --ns-filled-hover-border: rgba(37, 99, 235, 0.5);
+                    --ns-filled-hover-shadow: 0 12px 28px rgba(37, 99, 235, 0.2);
+                    --ns-record-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(241, 245, 249, 0.92) 100%);
+                    --ns-record-bg-hover: linear-gradient(180deg, rgba(219, 234, 254, 0.56) 0%, rgba(255, 255, 255, 0.98) 100%);
+                    --ns-record-border: rgba(148, 163, 184, 0.22);
+                    --ns-record-border-hover: rgba(59, 130, 246, 0.28);
+                    --ns-record-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+                    --ns-close-color: #64748b;
+                    --ns-close-hover-color: #be123c;
+                    --ns-danger-hover: rgba(244, 63, 94, 0.12);
+                    --ns-status: #64748b;
+                    --ns-error: #be123c;
+                    --ns-shadow: 0 24px 80px rgba(15, 23, 42, 0.18);
+                    --ns-search-btn-color: #1d4ed8;
+                    --ns-search-btn-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(239, 246, 255, 0.88) 100%);
+                    --ns-search-btn-border: rgba(59, 130, 246, 0.24);
+                    --ns-search-btn-shadow: 0 8px 20px rgba(148, 163, 184, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+                    --ns-search-btn-hover-color: #eff6ff;
+                    --ns-search-btn-hover-bg: linear-gradient(135deg, rgba(59, 130, 246, 0.92) 0%, rgba(37, 99, 235, 0.9) 100%);
+                    --ns-search-btn-hover-border: rgba(147, 197, 253, 0.72);
+                    --ns-search-btn-hover-shadow: 0 12px 28px rgba(37, 99, 235, 0.24);
+                }
+                #ns-ruling-panel {
+                    color-scheme: light;
+                }
+                @media (prefers-color-scheme: dark) {
+                    :root {
+                        --ns-overlay-bg: rgba(2, 6, 23, 0.68);
+                        --ns-panel-bg: linear-gradient(180deg, rgba(15, 23, 42, 0.92) 0%, rgba(2, 6, 23, 0.9) 100%);
+                        --ns-header-bg: linear-gradient(135deg, rgba(30, 41, 59, 0.96) 0%, rgba(15, 23, 42, 0.92) 100%);
+                        --ns-content-bg: linear-gradient(180deg, rgba(15, 23, 42, 0.55) 0%, rgba(2, 6, 23, 0.3) 100%);
+                        --ns-footer-bg: rgba(15, 23, 42, 0.76);
+                        --ns-panel-border: rgba(96, 165, 250, 0.22);
+                        --ns-divider: rgba(148, 163, 184, 0.16);
+                        --ns-text: #e5eefb;
+                        --ns-title: #f8fbff;
+                        --ns-text-muted: #94a3b8;
+                        --ns-text-soft: #cbd5e1;
+                        --ns-accent: #60a5fa;
+                        --ns-accent-strong: #3b82f6;
+                        --ns-link: #8ec5ff;
+                        --ns-link-hover: #bfdbfe;
+                        --ns-outline-bg: rgba(30, 41, 59, 0.72);
+                        --ns-outline-text: #bfdbfe;
+                        --ns-outline-border: rgba(96, 165, 250, 0.35);
+                        --ns-outline-hover-bg: rgba(59, 130, 246, 0.16);
+                        --ns-outline-hover-border: rgba(96, 165, 250, 0.55);
+                        --ns-outline-hover-text: #f8fbff;
+                        --ns-filled-bg: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                        --ns-filled-text: #eff6ff;
+                        --ns-filled-border: rgba(96, 165, 250, 0.42);
+                        --ns-filled-hover-bg: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+                        --ns-filled-hover-border: rgba(96, 165, 250, 0.7);
+                        --ns-filled-hover-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
+                        --ns-record-bg: linear-gradient(180deg, rgba(30, 41, 59, 0.92) 0%, rgba(15, 23, 42, 0.86) 100%);
+                        --ns-record-bg-hover: linear-gradient(180deg, rgba(37, 99, 235, 0.14) 0%, rgba(15, 23, 42, 0.94) 100%);
+                        --ns-record-border: rgba(148, 163, 184, 0.22);
+                        --ns-record-border-hover: rgba(96, 165, 250, 0.32);
+                        --ns-record-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+                        --ns-close-color: #cbd5e1;
+                        --ns-close-hover-color: #ffd7df;
+                        --ns-danger-hover: rgba(244, 63, 94, 0.18);
+                        --ns-status: #94a3b8;
+                        --ns-error: #fda4af;
+                        --ns-shadow: 0 24px 80px rgba(2, 6, 23, 0.55);
+                        --ns-search-btn-color: #bfdbfe;
+                        --ns-search-btn-bg: linear-gradient(135deg, rgba(30, 41, 59, 0.82) 0%, rgba(15, 23, 42, 0.78) 100%);
+                        --ns-search-btn-border: rgba(96, 165, 250, 0.28);
+                        --ns-search-btn-shadow: 0 8px 20px rgba(2, 6, 23, 0.22), inset 0 1px 0 rgba(255,255,255,0.04);
+                        --ns-search-btn-hover-color: #eff6ff;
+                        --ns-search-btn-hover-bg: linear-gradient(135deg, rgba(59, 130, 246, 0.9) 0%, rgba(37, 99, 235, 0.88) 100%);
+                        --ns-search-btn-hover-border: rgba(147, 197, 253, 0.62);
+                        --ns-search-btn-hover-shadow: 0 12px 28px rgba(37, 99, 235, 0.28);
+                    }
+                    #ns-ruling-panel {
+                        color-scheme: dark;
+                    }
+                }
                 #ns-ruling-panel * { box-sizing: border-box; }
-                #ns-ruling-panel button:disabled { opacity: 0.5; cursor: not-allowed !important; }
-                .ns-ruling-btn-outline:hover:not(:disabled) { background: rgba(230, 242, 251, 0.9) !important; }
-                .ns-ruling-btn-filled:hover:not(:disabled) { background: rgba(0, 90, 158, 0.9) !important; }
-                #ns-ruling-close:hover { background: #e81123 !important; color: #ffffff !important; }
-                .ns-ruling-record { border: 1px solid rgba(204, 228, 247, 0.6); border-left: 4px solid #0078d4; border-radius: 6px; background: rgba(255, 255, 255, 0.6); transition: background 0.2s; padding: 12px; margin-bottom: 12px; line-height: 1.6; }
-                .ns-ruling-record:hover { background: rgba(230, 242, 251, 0.8); }
+                #ns-ruling-panel button:disabled { opacity: 0.45; cursor: not-allowed !important; }
+                .ns-ruling-btn-outline,
+                .ns-ruling-btn-filled,
+                #ns-ruling-close,
+                .ns-ruling-link,
+                .ns-ruling-record,
+                .custom-search-btn {
+                    transition: all 0.2s ease;
+                }
+                .ns-ruling-btn-outline:hover:not(:disabled) {
+                    background: var(--ns-outline-hover-bg) !important;
+                    border-color: var(--ns-outline-hover-border) !important;
+                    color: var(--ns-outline-hover-text) !important;
+                }
+                .ns-ruling-btn-filled:hover:not(:disabled) {
+                    background: var(--ns-filled-hover-bg) !important;
+                    border-color: var(--ns-filled-hover-border) !important;
+                    box-shadow: var(--ns-filled-hover-shadow);
+                }
+                #ns-ruling-close:hover {
+                    background: var(--ns-danger-hover) !important;
+                    color: var(--ns-close-hover-color) !important;
+                }
+                .ns-ruling-record {
+                    border: 1px solid var(--ns-record-border);
+                    border-left: 4px solid var(--ns-accent-strong);
+                    border-radius: 12px;
+                    background: var(--ns-record-bg);
+                    box-shadow: var(--ns-record-shadow);
+                    padding: 14px 16px;
+                    margin-bottom: 12px;
+                    line-height: 1.7;
+                    color: var(--ns-text-soft);
+                }
+                .ns-ruling-record:hover {
+                    border-color: var(--ns-record-border-hover);
+                    background: var(--ns-record-bg-hover);
+                    transform: translateY(-1px);
+                }
+                .ns-ruling-icon {
+                    color: var(--ns-accent);
+                    font-weight: 600;
+                    margin-right: 6px;
+                }
+                .ns-ruling-link {
+                    color: var(--ns-link);
+                    text-decoration: none;
+                }
+                .ns-ruling-link:hover {
+                    color: var(--ns-link-hover);
+                    text-decoration: underline;
+                }
+                .ns-ruling-status {
+                    color: var(--ns-status);
+                }
+                .ns-ruling-status-error {
+                    color: var(--ns-error);
+                }
+                .ns-ruling-captcha-tip {
+                    color: var(--ns-text);
+                    margin-bottom: 12px;
+                }
+                .custom-search-btn {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    cursor: pointer;
+                    margin-left: 8px;
+                    padding: 3px 10px;
+                    border-radius: 999px;
+                    border: 1px solid var(--ns-search-btn-border);
+                    background: var(--ns-search-btn-bg);
+                    color: var(--ns-search-btn-color);
+                    box-shadow: var(--ns-search-btn-shadow);
+                    backdrop-filter: blur(10px) saturate(160%);
+                    -webkit-backdrop-filter: blur(10px) saturate(160%);
+                    font-size: 12px;
+                    user-select: none;
+                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                }
+                .custom-search-btn:hover {
+                    color: var(--ns-search-btn-hover-color);
+                    background: var(--ns-search-btn-hover-bg);
+                    border-color: var(--ns-search-btn-hover-border);
+                    box-shadow: var(--ns-search-btn-hover-shadow);
+                    transform: translateY(-1px);
+                }
             </style>
-            <div id="ns-ruling-overlay" style="position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 99998; display: none;"></div>
-            <div id="ns-ruling-panel" style="position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(860px, 95vw); max-height: 85vh; overflow: hidden; background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(0, 120, 212, 0.6); border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); z-index: 99999; display: none; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; font-size: 14px; color: #333333;">
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(0, 120, 212, 0.85); color: #ffffff;">
-                    <div id="ns-ruling-title" style="font-weight: 600; font-size: 15px;">管理记录</div>
-                    <button id="ns-ruling-close" style="border: 0; background: transparent; font-size: 16px; cursor: pointer; color: #ffffff; line-height: 1; padding: 8px 12px; margin: -12px -16px; transition: background 0.2s;">✕</button>
+            <div id="ns-ruling-overlay" style="position: fixed; inset: 0; background: var(--ns-overlay-bg); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 99998; display: none;"></div>
+            <div id="ns-ruling-panel" style="position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(860px, 95vw); max-height: 85vh; overflow: hidden; background: var(--ns-panel-bg); backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%); border: 1px solid var(--ns-panel-border); border-radius: 16px; box-shadow: var(--ns-shadow); z-index: 99999; display: none; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; font-size: 14px; color: var(--ns-text);">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: var(--ns-header-bg); border-bottom: 1px solid var(--ns-divider); color: var(--ns-title);">
+                    <div id="ns-ruling-title" style="font-weight: 600; font-size: 15px; letter-spacing: 0.01em;">管理记录</div>
+                    <button id="ns-ruling-close" style="border: 0; background: transparent; font-size: 16px; cursor: pointer; color: var(--ns-close-color); line-height: 1; padding: 8px 12px; border-radius: 10px;">✕</button>
                 </div>
-                <div id="ns-ruling-content" style="padding: 16px; max-height: calc(85vh - 100px); overflow-y: auto; background: rgba(244, 248, 252, 0.4);"></div>
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid rgba(220, 220, 220, 0.6); background: rgba(240, 240, 240, 0.5);">
-                    <div id="ns-ruling-page-info" style="color: #666666;"></div>
+                <div id="ns-ruling-content" style="padding: 18px; max-height: calc(85vh - 108px); overflow-y: auto; background: var(--ns-content-bg);"></div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-top: 1px solid var(--ns-divider); background: var(--ns-footer-bg);">
+                    <div id="ns-ruling-page-info" style="color: var(--ns-text-muted);"></div>
                     <div style="display: flex; gap: 8px;">
-                        <button id="ns-ruling-prev" class="ns-ruling-btn-outline" style="border: 1px solid #0078d4; border-radius: 6px; background: rgba(255, 255, 255, 0.8); color: #0078d4; padding: 6px 16px; cursor: pointer;">上一页</button>
-                        <button id="ns-ruling-next" class="ns-ruling-btn-filled" style="border: 1px solid #0078d4; border-radius: 6px; background: rgba(0, 120, 212, 0.9); color: #ffffff; padding: 6px 16px; cursor: pointer;">下一页</button>
+                        <button id="ns-ruling-prev" class="ns-ruling-btn-outline" style="border: 1px solid var(--ns-outline-border); border-radius: 10px; background: var(--ns-outline-bg); color: var(--ns-outline-text); padding: 8px 16px; cursor: pointer;">上一页</button>
+                        <button id="ns-ruling-next" class="ns-ruling-btn-filled" style="border: 1px solid var(--ns-filled-border); border-radius: 10px; background: var(--ns-filled-bg); color: var(--ns-filled-text); padding: 8px 16px; cursor: pointer; box-shadow: var(--ns-filled-hover-shadow);">下一页</button>
                     </div>
                 </div>
             </div>
@@ -127,12 +316,12 @@
     function renderLoading(username) {
         openModal();
         document.getElementById('ns-ruling-title').textContent = `管理记录：${username}`;
-        document.getElementById('ns-ruling-content').innerHTML = '<div style="color:#6b7280;">正在查询中...</div>';
+        document.getElementById('ns-ruling-content').innerHTML = '<div class="ns-ruling-status">正在查询中...</div>';
         document.getElementById('ns-ruling-page-info').textContent = '';
     }
 
     function renderError(msg) {
-        document.getElementById('ns-ruling-content').innerHTML = `<div style="color:#b91c1c;">${escapeHtml(msg)}</div>`;
+        document.getElementById('ns-ruling-content').innerHTML = `<div class="ns-ruling-status-error">${escapeHtml(msg)}</div>`;
         document.getElementById('ns-ruling-page-info').textContent = '';
     }
 
@@ -148,7 +337,7 @@
         totalPages = data.total_pages || 0;
 
         if (!data.records || data.records.length === 0) {
-            content.innerHTML = '<div style="color:#6b7280;">未找到该用户相关管理记录。</div>';
+            content.innerHTML = '<div class="ns-ruling-status">未找到该用户相关管理记录。</div>';
             pageInfo.textContent = `共 0 条`;
             prevBtn.disabled = true;
             nextBtn.disabled = true;
@@ -161,15 +350,15 @@
                 ? (rawRecordId.startsWith('id-') ? rawRecordId : `id-${rawRecordId}`)
                 : '';
             const rulingRecordLink = rulingRecordId
-                ? `<a href="https://www.nodeseek.com/ruling#/${encodeURIComponent(rulingRecordId)}" target="_blank" rel="noopener noreferrer" style="color:#0078d4; text-decoration:none;">${escapeHtml(rulingRecordId)}</a>`
+                ? `<a href="https://www.nodeseek.com/ruling#/${encodeURIComponent(rulingRecordId)}" target="_blank" rel="noopener noreferrer" class="ns-ruling-link">${escapeHtml(rulingRecordId)}</a>`
                 : '-';
 
             return `
                 <div class="ns-ruling-record">
-                    <div><span style="color:#0078d4; font-weight:600; margin-right:4px;">👮</span> 操作人: ${escapeHtml(record.admin_name || '')}</div>
-                    <div><span style="color:#0078d4; font-weight:600; margin-right:4px;">📝</span> 原因/操作: ${escapeHtml(record.action_request || '')}</div>
-                    <div><span style="color:#0078d4; font-weight:600; margin-right:4px;">🕒</span> 时间: ${escapeHtml(record.created_at_bj || record.created_at || '')}</div>
-                    <div><span style="color:#0078d4; font-weight:600; margin-right:4px;">📋</span> 管理记录: ${rulingRecordLink}</div>
+                    <div><span class="ns-ruling-icon">👮</span> 操作人: ${escapeHtml(record.admin_name || '')}</div>
+                    <div><span class="ns-ruling-icon">📝</span> 原因/操作: ${escapeHtml(record.action_request || '')}</div>
+                    <div><span class="ns-ruling-icon">🕒</span> 时间: ${escapeHtml(record.created_at_bj || record.created_at || '')}</div>
+                    <div><span class="ns-ruling-icon">📋</span> 管理记录: ${rulingRecordLink}</div>
                 </div>
             `;
         });
@@ -292,10 +481,10 @@
 
             const content = document.getElementById('ns-ruling-content');
             content.innerHTML = `
-                <div style="color:#333333; margin-bottom:12px;">检测到访问保护，请先完成验证码。</div>
+                <div class="ns-ruling-captcha-tip">检测到访问保护，请先完成验证码。</div>
                 <div id="ns-turnstile-box" style="display:flex; justify-content:center; margin:16px 0;"></div>
                 <div style="display:flex; justify-content:flex-end;">
-                    <button id="ns-turnstile-cancel" class="ns-ruling-btn-outline" style="border:1px solid #0078d4; border-radius:6px; background:rgba(255, 255, 255, 0.8); color:#0078d4; padding:6px 16px; cursor:pointer;">取消</button>
+                    <button id="ns-turnstile-cancel" class="ns-ruling-btn-outline" style="border:1px solid var(--ns-outline-border); border-radius:10px; background:var(--ns-outline-bg); color:var(--ns-outline-text); padding:8px 16px; cursor:pointer;">取消</button>
                 </div>
             `;
 
@@ -319,7 +508,7 @@
                         reject(new Error(`验证码加载失败(${errorCode || 'unknown'})。${hint}`));
                     },
                     'expired-callback': () => reject(new Error('验证码已过期，请重试')),
-                    theme: 'light'
+                    theme: isDarkModePreferred() ? 'dark' : 'light'
                 });
             }).catch((err) => reject(err));
         });
@@ -395,6 +584,7 @@
     }
 
     function injectSearchButtons() {
+        ensureModal();
         const wrappers = document.querySelectorAll('.nsk-post-wrapper');
         if (!wrappers.length) {
             return;
@@ -425,32 +615,12 @@
                     marginLeft: '8px',
                     fontSize: '12px',
                     userSelect: 'none',
-                    color: '#0078d4',
-                    backgroundColor: 'rgba(230, 242, 251, 0.65)',
-                    backdropFilter: 'blur(8px)',
-                    WebkitBackdropFilter: 'blur(8px)',
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    border: '1px solid rgba(204, 228, 247, 0.6)',
-                    transition: 'all 0.2s ease',
                     fontFamily: "'Segoe UI', 'Microsoft YaHei', sans-serif"
                 });
-
-                searchBtn.onmouseenter = () => {
-                    searchBtn.style.color = '#ffffff';
-                    searchBtn.style.backgroundColor = 'rgba(0, 120, 212, 0.9)';
-                    searchBtn.style.borderColor = '#0078d4';
-                };
-                searchBtn.onmouseleave = () => {
-                    searchBtn.style.color = '#0078d4';
-                    searchBtn.style.backgroundColor = 'rgba(230, 242, 251, 0.65)';
-                    searchBtn.style.borderColor = 'rgba(204, 228, 247, 0.6)';
-                };
 
                 searchBtn.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-
                     triggerQuery(username);
                 });
 
