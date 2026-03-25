@@ -591,10 +591,32 @@
         }
 
         wrappers.forEach(wrapper => {
+            // Keep only one query button inside each meta info block.
+            const metaInfos = wrapper.querySelectorAll('.nsk-content-meta-info');
+            metaInfos.forEach(metaInfo => {
+                const existingBtns = metaInfo.querySelectorAll('.custom-search-btn');
+                if (existingBtns.length > 1) {
+                    existingBtns.forEach((btn, index) => {
+                        if (index > 0) {
+                            btn.remove();
+                        }
+                    });
+                }
+            });
+
             const userNodes = wrapper.querySelectorAll(USERNAME_SELECTOR);
 
             userNodes.forEach(node => {
                 if (!node.closest('.nsk-post-wrapper')) {
+                    return;
+                }
+
+                if (node.closest('.nsx-user-info-display')) {
+                    return;
+                }
+
+                const metaInfo = node.closest('.nsk-content-meta-info');
+                if (metaInfo && metaInfo.querySelector('.custom-search-btn')) {
                     return;
                 }
 
