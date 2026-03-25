@@ -7,8 +7,7 @@
 // @match        *://www.nodeseek.com/post-*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=nodeseek.com
 // @grant        GM_xmlhttpRequest
-// @grant        unsafeWindow
-// @connect      *
+// @connect      ruling.shaynewong.dpdns.org
 // ==/UserScript==
 
 (function () {
@@ -16,8 +15,37 @@
 
     const USERNAME_SELECTOR = '.post-list-item a.username, .comment-list a.username, a[href^="/space/"]';
     const API_BASE_URL = 'https://ruling.shaynewong.dpdns.org/';
+    const TRUSTED_API_HOSTS = new Set(['ruling.shaynewong.dpdns.org']);
     const TURNSTILE_SCRIPT_URL = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
     const PER_PAGE = 5;
+
+    function validateApiBaseUrl(rawUrl) {
+        let parsed;
+        try {
+            parsed = new URL(rawUrl);
+        } catch (err) {
+            throw new Error('API_BASE_URL 配置无效，必须是完整 HTTPS 地址');
+        }
+
+        if (parsed.protocol !== 'https:') {
+            throw new Error('API_BASE_URL 必须使用 HTTPS');
+        }
+
+        if (!TRUSTED_API_HOSTS.has(parsed.hostname)) {
+            throw new Error(`不受信任的后端域名：${parsed.hostname}`);
+        }
+
+        const base = `${parsed.origin}${parsed.pathname}`.replace(/\/+$/, '');
+        if (!base) {
+            throw new Error('API_BASE_URL 归一化失败');
+        }
+
+        return base;
+    }
+
+    const SAFE_API_BASE_URL = validateApiBaseUrl(API_BASE_URL);
+    const SAFE_API_HOST = new URL(SAFE_API_BASE_URL).hostname;
+
 
     let currentTarget = '';
     let currentPage = 1;
@@ -268,6 +296,7 @@
                     <div id="ns-ruling-title" style="font-weight: 600; font-size: 15px; letter-spacing: 0.01em;">管理记录</div>
                     <button id="ns-ruling-close" style="border: 0; background: transparent; font-size: 16px; cursor: pointer; color: var(--ns-close-color); line-height: 1; padding: 8px 12px; border-radius: 10px;">✕</button>
                 </div>
+                <div id="ns-ruling-source" style="padding: 8px 18px; border-bottom: 1px solid var(--ns-divider); color: var(--ns-text-muted); font-size: 12px;"></div>
                 <div id="ns-ruling-content" style="padding: 18px; max-height: calc(85vh - 108px); overflow-y: auto; background: var(--ns-content-bg);"></div>
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-top: 1px solid var(--ns-divider); background: var(--ns-footer-bg);">
                     <div id="ns-ruling-page-info" style="color: var(--ns-text-muted);"></div>
@@ -313,14 +342,23 @@
         if (panel) panel.style.display = 'none';
     }
 
+    function renderSourceInfo() {
+        const sourceEl = document.getElementById('ns-ruling-source');
+        if (sourceEl) {
+            sourceEl.textContent = `数据来源：${SAFE_API_HOST}`;
+        }
+    }
+
     function renderLoading(username) {
         openModal();
+        renderSourceInfo();
         document.getElementById('ns-ruling-title').textContent = `管理记录：${username}`;
         document.getElementById('ns-ruling-content').innerHTML = '<div class="ns-ruling-status">正在查询中...</div>';
         document.getElementById('ns-ruling-page-info').textContent = '';
     }
 
     function renderError(msg) {
+        renderSourceInfo();
         document.getElementById('ns-ruling-content').innerHTML = `<div class="ns-ruling-status-error">${escapeHtml(msg)}</div>`;
         document.getElementById('ns-ruling-page-info').textContent = '';
     }
@@ -331,6 +369,7 @@
         const prevBtn = document.getElementById('ns-ruling-prev');
         const nextBtn = document.getElementById('ns-ruling-next');
 
+        renderSourceInfo();
         document.getElementById('ns-ruling-title').textContent = `管理记录：${username}`;
 
         currentPage = data.page || 1;
@@ -398,7 +437,7 @@
             return cachedCaptchaConfig;
         }
 
-        const queryUrl = `${API_BASE_URL}/api/captcha/config`;
+        const queryUrl = `${SAFE_API_BASE_URL}/api/captcha/config`;
         const resp = await requestJson('GET', queryUrl);
         if (resp.status < 200 || resp.status >= 300 || !resp.body.success) {
             throw new Error(resp.body.message || resp.body.error || '获取验证码配置失败');
@@ -414,12 +453,21 @@
         }
 
         const getTurnstileInstance = () => {
-            if (window.turnstile) {
-                return window.turnstile;
+            const candidates = [];
+            candidates.push(window.turnstile);
+            if (typeof unsafeWindow !== 'undefined') {
+                candidates.push(unsafeWindow.turnstile);
             }
-            if (typeof unsafeWindow !== 'undefined' && unsafeWindow.turnstile) {
-                return unsafeWindow.turnstile;
+            if (typeof globalThis !== 'undefined' && globalThis !== window) {
+                candidates.push(globalThis.turnstile);
             }
+
+            for (const candidate of candidates) {
+                if (candidate && typeof candidate.render === 'function') {
+                    return candidate;
+                }
+            }
+
             return null;
         };
 
@@ -434,7 +482,7 @@
                         return;
                     }
 
-                    if (Date.now() - startedAt > 4000) {
+                    if (Date.now() - startedAt > 10000) {
                         clearInterval(timer);
                         reject(new Error('验证码脚本加载完成但不可用'));
                     }
@@ -451,10 +499,16 @@
 
             const existing = document.querySelector('script[data-ns-turnstile="1"]');
             if (existing) {
-                existing.addEventListener('load', () => {
-                    waitTurnstileReady().then(resolve).catch(reject);
+                waitTurnstileReady().then(resolve).catch(() => {
+                    if (existing.readyState === 'complete' || existing.dataset.nsLoaded === '1') {
+                        reject(new Error('验证码脚本加载完成但不可用'));
+                        return;
+                    }
+                    existing.addEventListener('load', () => {
+                        waitTurnstileReady().then(resolve).catch(reject);
+                    }, { once: true });
                 });
-                existing.addEventListener('error', () => reject(new Error('验证码脚本加载失败')));
+                existing.addEventListener('error', () => reject(new Error('验证码脚本加载失败')), { once: true });
                 return;
             }
 
@@ -464,10 +518,14 @@
             script.defer = true;
             script.dataset.nsTurnstile = '1';
             script.onload = () => {
+                script.dataset.nsLoaded = '1';
                 waitTurnstileReady().then(resolve).catch(reject);
             };
             script.onerror = () => reject(new Error('验证码脚本加载失败'));
             document.head.appendChild(script);
+        }).catch((err) => {
+            turnstileScriptPromise = null;
+            throw err;
         });
 
         return turnstileScriptPromise;
@@ -515,7 +573,7 @@
     }
 
     async function verifyCaptchaToken(token) {
-        const verifyUrl = `${API_BASE_URL}/api/captcha/verify?token=${encodeURIComponent(token)}`;
+        const verifyUrl = `${SAFE_API_BASE_URL}/api/captcha/verify?token=${encodeURIComponent(token)}`;
         const resp = await requestJson('GET', verifyUrl);
         if (resp.status < 200 || resp.status >= 300 || !resp.body.success) {
             throw new Error(resp.body.message || resp.body.error || '验证码校验失败');
@@ -550,7 +608,7 @@
             return;
         }
 
-        const queryUrl = `${API_BASE_URL}/api/search?target=${encodeURIComponent(currentTarget)}&page=${page}&per_page=${PER_PAGE}`;
+        const queryUrl = `${SAFE_API_BASE_URL}/api/search?target=${encodeURIComponent(currentTarget)}&page=${page}&per_page=${PER_PAGE}`;
 
         try {
             const resp = await requestJson('GET', queryUrl);
