@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NodeSeek 用户管理记录快捷查询
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  在帖子的每个用户名旁边添加一个按钮触发用户管理记录查询
 // @author       Kingrz
 // @match        *://www.nodeseek.com/post-*
@@ -291,13 +291,13 @@
                 }
             </style>
             <div id="ns-ruling-overlay" style="position: fixed; inset: 0; background: var(--ns-overlay-bg); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 99998; display: none;"></div>
-            <div id="ns-ruling-panel" style="position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(860px, 95vw); max-height: 85vh; overflow: hidden; background: var(--ns-panel-bg); backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%); border: 1px solid var(--ns-panel-border); border-radius: 16px; box-shadow: var(--ns-shadow); z-index: 99999; display: none; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; font-size: 14px; color: var(--ns-text);">
+            <div id="ns-ruling-panel" style="position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(860px, 95vw); max-height: 85vh; overflow: hidden; background: var(--ns-panel-bg); backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%); border: 1px solid var(--ns-panel-border); border-radius: 16px; box-shadow: var(--ns-shadow); z-index: 99999; display: none; flex-direction: column; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; font-size: 14px; color: var(--ns-text);">
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: var(--ns-header-bg); border-bottom: 1px solid var(--ns-divider); color: var(--ns-title);">
                     <div id="ns-ruling-title" style="font-weight: 600; font-size: 15px; letter-spacing: 0.01em;">管理记录</div>
                     <button id="ns-ruling-close" style="border: 0; background: transparent; font-size: 16px; cursor: pointer; color: var(--ns-close-color); line-height: 1; padding: 8px 12px; border-radius: 10px;">✕</button>
                 </div>
                 <div id="ns-ruling-source" style="padding: 8px 18px; border-bottom: 1px solid var(--ns-divider); color: var(--ns-text-muted); font-size: 12px;"></div>
-                <div id="ns-ruling-content" style="padding: 18px; max-height: calc(85vh - 108px); overflow-y: auto; background: var(--ns-content-bg);"></div>
+                <div id="ns-ruling-content" style="padding: 18px; flex: 1 1 auto; min-height: 0; overflow-y: auto; background: var(--ns-content-bg);"></div>
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-top: 1px solid var(--ns-divider); background: var(--ns-footer-bg);">
                     <div id="ns-ruling-page-info" style="color: var(--ns-text-muted);"></div>
                     <div style="display: flex; gap: 8px;">
@@ -332,7 +332,7 @@
     function openModal() {
         ensureModal();
         document.getElementById('ns-ruling-overlay').style.display = 'block';
-        document.getElementById('ns-ruling-panel').style.display = 'block';
+        document.getElementById('ns-ruling-panel').style.display = 'flex';
     }
 
     function closeModal() {
@@ -372,8 +372,13 @@
         renderSourceInfo();
         document.getElementById('ns-ruling-title').textContent = `管理记录：${username}`;
 
-        currentPage = data.page || 1;
-        totalPages = data.total_pages || 0;
+        const totalCount = Number(data.total_count || data.total || 0) || 0;
+        const perPage = Number(data.per_page || PER_PAGE) || PER_PAGE;
+        currentPage = Number(data.page || data.current_page || 1) || 1;
+
+        const backendTotalPages = Number(data.total_pages || data.pages || 0) || 0;
+        const fallbackTotalPages = totalCount > 0 ? Math.ceil(totalCount / perPage) : 0;
+        totalPages = backendTotalPages > 0 ? backendTotalPages : fallbackTotalPages;
 
         if (!data.records || data.records.length === 0) {
             content.innerHTML = '<div class="ns-ruling-status">未找到该用户相关管理记录。</div>';
@@ -403,7 +408,7 @@
         });
 
         content.innerHTML = blocks.join('');
-        pageInfo.textContent = `共 ${data.total_count} 条，第 ${currentPage}/${totalPages} 页`;
+        pageInfo.textContent = `共 ${totalCount} 条，第 ${currentPage}/${totalPages} 页`;
         prevBtn.disabled = currentPage <= 1;
         nextBtn.disabled = currentPage >= totalPages;
     }
