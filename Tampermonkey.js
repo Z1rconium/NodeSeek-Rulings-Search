@@ -4,6 +4,7 @@
 // @version      1.4
 // @description  在帖子的每个用户名旁边添加一个按钮触发用户管理记录查询
 // @author       Kingrz
+// @license      All Rights Reserved
 // @match        *://www.nodeseek.com/post-*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=nodeseek.com
 // @grant        GM_xmlhttpRequest
