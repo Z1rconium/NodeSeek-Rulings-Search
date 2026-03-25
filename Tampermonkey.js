@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NodeSeek 用户管理记录快捷查询
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  在帖子的每个用户名旁边添加一个按钮触发用户管理记录查询
 // @author       Kingrz
 // @match        *://www.nodeseek.com/post-*
@@ -591,7 +591,6 @@
         }
 
         wrappers.forEach(wrapper => {
-            // Keep only one query button inside each meta info block.
             const metaInfos = wrapper.querySelectorAll('.nsk-content-meta-info');
             metaInfos.forEach(metaInfo => {
                 const existingBtns = metaInfo.querySelectorAll('.custom-search-btn');
