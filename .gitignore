@@ -3,3 +3,6 @@ CLAUDE.md
 NodeSeek-Rulings-Search/.claude/
 .claude/
 information_for_greasyfork.md
+.DS_Store
+.gitignore
+blog.md
