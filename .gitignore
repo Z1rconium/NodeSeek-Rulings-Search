@@ -6,3 +6,5 @@ information_for_greasyfork.md
 .DS_Store
 .gitignore
 blog.md
+AGENTS.md
+.gitignore

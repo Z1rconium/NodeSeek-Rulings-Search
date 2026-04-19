@@ -1,14 +1,13 @@
 // ==UserScript==
 // @name         NodeSeek 用户管理记录快捷查询
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      1.7
 // @description  在帖子的每个用户名旁边添加一个按钮触发用户管理记录查询
 // @author       Kingrz
 // @license      All Rights Reserved
 // @match        *://www.nodeseek.com/post-*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=nodeseek.com
 // @grant        GM_xmlhttpRequest
-// @grant        GM_addStyle
 // @connect      ruling.shaynewong.dpdns.org
 // ==/UserScript==
 
@@ -48,8 +47,8 @@
     const SAFE_API_BASE_URL = validateApiBaseUrl(API_BASE_URL);
     const SAFE_API_HOST = new URL(SAFE_API_BASE_URL).hostname;
 
-    // Inject CSS once
-    GM_addStyle(`
+    const STYLE_ELEMENT_ID = 'ns-ruling-style';
+    const PANEL_STYLES = `
         :root {
             --ns-overlay-bg: rgba(15, 23, 42, 0.22);
             --ns-panel-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.94) 100%);
@@ -242,7 +241,20 @@
             box-shadow: var(--ns-search-btn-hover-shadow);
             transform: translateY(-1px);
         }
-    `);
+    `;
+
+    function injectStyles() {
+        if (document.getElementById(STYLE_ELEMENT_ID)) {
+            return;
+        }
+
+        const styleEl = document.createElement('style');
+        styleEl.id = STYLE_ELEMENT_ID;
+        styleEl.textContent = PANEL_STYLES;
+        (document.head || document.documentElement).appendChild(styleEl);
+    }
+
+    injectStyles();
 
     const processedNodes = new WeakSet();
     let currentTarget = '';
@@ -294,191 +306,6 @@
         const modal = document.createElement('div');
         modal.id = 'ns-ruling-modal';
         modal.innerHTML = `
-                :root {
-                    --ns-overlay-bg: rgba(15, 23, 42, 0.22);
-                    --ns-panel-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.94) 100%);
-                    --ns-header-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(239, 246, 255, 0.96) 100%);
-                    --ns-content-bg: linear-gradient(180deg, rgba(248, 250, 252, 0.8) 0%, rgba(255, 255, 255, 0.68) 100%);
-                    --ns-footer-bg: rgba(248, 250, 252, 0.82);
-                    --ns-panel-border: rgba(59, 130, 246, 0.2);
-                    --ns-divider: rgba(148, 163, 184, 0.22);
-                    --ns-text: #0f172a;
-                    --ns-title: #0f172a;
-                    --ns-text-muted: #64748b;
-                    --ns-text-soft: #334155;
-                    --ns-accent: #2563eb;
-                    --ns-accent-strong: #2563eb;
-                    --ns-link: #2563eb;
-                    --ns-link-hover: #1d4ed8;
-                    --ns-outline-bg: rgba(255, 255, 255, 0.88);
-                    --ns-outline-text: #1d4ed8;
-                    --ns-outline-border: rgba(59, 130, 246, 0.24);
-                    --ns-outline-hover-bg: rgba(219, 234, 254, 0.9);
-                    --ns-outline-hover-border: rgba(59, 130, 246, 0.4);
-                    --ns-outline-hover-text: #1e40af;
-                    --ns-filled-bg: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-                    --ns-filled-text: #eff6ff;
-                    --ns-filled-border: rgba(59, 130, 246, 0.38);
-                    --ns-filled-hover-bg: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-                    --ns-filled-hover-border: rgba(37, 99, 235, 0.5);
-                    --ns-filled-hover-shadow: 0 12px 28px rgba(37, 99, 235, 0.2);
-                    --ns-record-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(241, 245, 249, 0.92) 100%);
-                    --ns-record-bg-hover: linear-gradient(180deg, rgba(219, 234, 254, 0.56) 0%, rgba(255, 255, 255, 0.98) 100%);
-                    --ns-record-border: rgba(148, 163, 184, 0.22);
-                    --ns-record-border-hover: rgba(59, 130, 246, 0.28);
-                    --ns-record-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-                    --ns-close-color: #64748b;
-                    --ns-close-hover-color: #be123c;
-                    --ns-danger-hover: rgba(244, 63, 94, 0.12);
-                    --ns-status: #64748b;
-                    --ns-error: #be123c;
-                    --ns-shadow: 0 24px 80px rgba(15, 23, 42, 0.18);
-                    --ns-search-btn-color: #1d4ed8;
-                    --ns-search-btn-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(239, 246, 255, 0.88) 100%);
-                    --ns-search-btn-border: rgba(59, 130, 246, 0.24);
-                    --ns-search-btn-shadow: 0 8px 20px rgba(148, 163, 184, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.7);
-                    --ns-search-btn-hover-color: #eff6ff;
-                    --ns-search-btn-hover-bg: linear-gradient(135deg, rgba(59, 130, 246, 0.92) 0%, rgba(37, 99, 235, 0.9) 100%);
-                    --ns-search-btn-hover-border: rgba(147, 197, 253, 0.72);
-                    --ns-search-btn-hover-shadow: 0 12px 28px rgba(37, 99, 235, 0.24);
-                }
-                #ns-ruling-panel {
-                    color-scheme: light;
-                }
-                @media (prefers-color-scheme: dark) {
-                    :root {
-                        --ns-overlay-bg: rgba(2, 6, 23, 0.68);
-                        --ns-panel-bg: linear-gradient(180deg, rgba(15, 23, 42, 0.92) 0%, rgba(2, 6, 23, 0.9) 100%);
-                        --ns-header-bg: linear-gradient(135deg, rgba(30, 41, 59, 0.96) 0%, rgba(15, 23, 42, 0.92) 100%);
-                        --ns-content-bg: linear-gradient(180deg, rgba(15, 23, 42, 0.55) 0%, rgba(2, 6, 23, 0.3) 100%);
-                        --ns-footer-bg: rgba(15, 23, 42, 0.76);
-                        --ns-panel-border: rgba(96, 165, 250, 0.22);
-                        --ns-divider: rgba(148, 163, 184, 0.16);
-                        --ns-text: #e5eefb;
-                        --ns-title: #f8fbff;
-                        --ns-text-muted: #94a3b8;
-                        --ns-text-soft: #cbd5e1;
-                        --ns-accent: #60a5fa;
-                        --ns-accent-strong: #3b82f6;
-                        --ns-link: #8ec5ff;
-                        --ns-link-hover: #bfdbfe;
-                        --ns-outline-bg: rgba(30, 41, 59, 0.72);
-                        --ns-outline-text: #bfdbfe;
-                        --ns-outline-border: rgba(96, 165, 250, 0.35);
-                        --ns-outline-hover-bg: rgba(59, 130, 246, 0.16);
-                        --ns-outline-hover-border: rgba(96, 165, 250, 0.55);
-                        --ns-outline-hover-text: #f8fbff;
-                        --ns-filled-bg: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-                        --ns-filled-text: #eff6ff;
-                        --ns-filled-border: rgba(96, 165, 250, 0.42);
-                        --ns-filled-hover-bg: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-                        --ns-filled-hover-border: rgba(96, 165, 250, 0.7);
-                        --ns-filled-hover-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
-                        --ns-record-bg: linear-gradient(180deg, rgba(30, 41, 59, 0.92) 0%, rgba(15, 23, 42, 0.86) 100%);
-                        --ns-record-bg-hover: linear-gradient(180deg, rgba(37, 99, 235, 0.14) 0%, rgba(15, 23, 42, 0.94) 100%);
-                        --ns-record-border: rgba(148, 163, 184, 0.22);
-                        --ns-record-border-hover: rgba(96, 165, 250, 0.32);
-                        --ns-record-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
-                        --ns-close-color: #cbd5e1;
-                        --ns-close-hover-color: #ffd7df;
-                        --ns-danger-hover: rgba(244, 63, 94, 0.18);
-                        --ns-status: #94a3b8;
-                        --ns-error: #fda4af;
-                        --ns-shadow: 0 24px 80px rgba(2, 6, 23, 0.55);
-                        --ns-search-btn-color: #bfdbfe;
-                        --ns-search-btn-bg: linear-gradient(135deg, rgba(30, 41, 59, 0.82) 0%, rgba(15, 23, 42, 0.78) 100%);
-                        --ns-search-btn-border: rgba(96, 165, 250, 0.28);
-                        --ns-search-btn-shadow: 0 8px 20px rgba(2, 6, 23, 0.22), inset 0 1px 0 rgba(255,255,255,0.04);
-                        --ns-search-btn-hover-color: #eff6ff;
-                        --ns-search-btn-hover-bg: linear-gradient(135deg, rgba(59, 130, 246, 0.9) 0%, rgba(37, 99, 235, 0.88) 100%);
-                        --ns-search-btn-hover-border: rgba(147, 197, 253, 0.62);
-                        --ns-search-btn-hover-shadow: 0 12px 28px rgba(37, 99, 235, 0.28);
-                    }
-                    #ns-ruling-panel {
-                        color-scheme: dark;
-                    }
-                }
-                #ns-ruling-panel * { box-sizing: border-box; }
-                #ns-ruling-panel button:disabled { opacity: 0.45; cursor: not-allowed !important; }
-                .ns-ruling-btn-outline,
-                .ns-ruling-btn-filled,
-                #ns-ruling-close,
-                .ns-ruling-link,
-                .ns-ruling-record,
-                .custom-search-btn {
-                    transition: all 0.2s ease;
-                }
-                .ns-ruling-btn-outline:hover:not(:disabled) {
-                    background: var(--ns-outline-hover-bg) !important;
-                    border-color: var(--ns-outline-hover-border) !important;
-                    color: var(--ns-outline-hover-text) !important;
-                }
-                .ns-ruling-btn-filled:hover:not(:disabled) {
-                    background: var(--ns-filled-hover-bg) !important;
-                    border-color: var(--ns-filled-hover-border) !important;
-                    box-shadow: var(--ns-filled-hover-shadow);
-                }
-                #ns-ruling-close:hover {
-                    background: var(--ns-danger-hover) !important;
-                    color: var(--ns-close-hover-color) !important;
-                }
-                .ns-ruling-record {
-                    border: 1px solid var(--ns-record-border);
-                    border-left: 4px solid var(--ns-accent-strong);
-                    border-radius: 12px;
-                    background: var(--ns-record-bg);
-                    box-shadow: var(--ns-record-shadow);
-                    padding: 14px 16px;
-                    margin-bottom: 12px;
-                    line-height: 1.7;
-                    color: var(--ns-text-soft);
-                }
-                .ns-ruling-record:hover {
-                    border-color: var(--ns-record-border-hover);
-                    background: var(--ns-record-bg-hover);
-                    transform: translateY(-1px);
-                }
-                .ns-ruling-icon {
-                    color: var(--ns-accent);
-                    font-weight: 600;
-                    margin-right: 6px;
-                }
-                .ns-ruling-link {
-                    color: var(--ns-link);
-                    text-decoration: none;
-                }
-                .ns-ruling-link:hover {
-                    color: var(--ns-link-hover);
-                    text-decoration: underline;
-                }
-                .ns-ruling-status {
-                    color: var(--ns-status);
-                }
-                .ns-ruling-status-error {
-                    color: var(--ns-error);
-                }
-                .ns-ruling-captcha-tip {
-                    color: var(--ns-text);
-                    margin-bottom: 12px;
-                }
-                .custom-search-btn {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 4px;
-                    cursor: pointer;
-                    margin-left: 8px;
-                    padding: 3px 10px;
-                    border-radius: 999px;
-                    border: 1px solid var(--ns-search-btn-border);
-                    background: var(--ns-search-btn-bg);
-                    color: var(--ns-search-btn-color);
-                    box-shadow: var(--ns-search-btn-shadow);
-                    backdrop-filter: blur(10px) saturate(160%);
-                    -webkit-backdrop-filter: blur(10px) saturate(160%);
-                    font-size: 12px;
-                    user-select: none;
-                    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-                }
             <div id="ns-ruling-overlay" style="position: fixed; inset: 0; background: var(--ns-overlay-bg); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 99998; display: none;"></div>
             <div id="ns-ruling-panel" style="position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(860px, 95vw); max-height: 85vh; overflow: hidden; background: var(--ns-panel-bg); backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%); border: 1px solid var(--ns-panel-border); border-radius: 16px; box-shadow: var(--ns-shadow); z-index: 99999; display: none; flex-direction: column; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; font-size: 14px; color: var(--ns-text);">
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: var(--ns-header-bg); border-bottom: 1px solid var(--ns-divider); color: var(--ns-title);">
@@ -559,6 +386,10 @@
         const nextBtn = document.getElementById('ns-ruling-next');
 
         renderSourceInfo();
+        const sourceEl = document.getElementById('ns-ruling-source');
+        if (sourceEl && data.last_update_time) {
+            sourceEl.textContent = `数据来源：${SAFE_API_HOST} | 数据库最近更新：${data.last_update_time}`;
+        }
         document.getElementById('ns-ruling-title').textContent = `管理记录：${username}（精确匹配）`;
 
         const totalCount = Number(data.total_count || data.total || 0) || 0;
